@@ -25,6 +25,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.io.BaseEncoding;
 import com.googlecode.objectify.Key;
 import google.registry.config.RegistryConfig.Config;
@@ -48,7 +49,6 @@ import google.registry.model.registry.Registry.RegistryNotFoundException;
 import google.registry.model.registry.Registry.TldState;
 import google.registry.model.reporting.HistoryEntry;
 import google.registry.util.Clock;
-import google.registry.util.FormattingLogger;
 import google.registry.xjc.XjcXmlTransformer;
 import google.registry.xjc.rdedomain.XjcRdeDomain;
 import google.registry.xjc.rdedomain.XjcRdeDomainElement;
@@ -67,7 +67,7 @@ import javax.xml.stream.XMLStreamException;
  */
 public class RdeImportUtils {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   private final Ofy ofy;
   private final Clock clock;
@@ -121,11 +121,9 @@ public class RdeImportUtils {
         .add(resource)
         .addAll(createIndexesForEppResource(resource))
         .build());
-    logger.infofmt(
+    logger.atInfo().log(
         "Imported %s resource - ROID=%s, id=%s",
-        resource.getClass().getSimpleName(),
-        resource.getRepoId(),
-        resource.getForeignKey());
+        resource.getClass().getSimpleName(), resource.getRepoId(), resource.getForeignKey());
   }
 
   /**

@@ -18,8 +18,11 @@ java_library(
     visibility = ["//visibility:public"],
     deps = [
         "//java/google/registry/util",
+        "@com_google_appengine_tools_sdk",
         "@com_google_auto_value",
         "@com_google_code_findbugs_jsr305",
+        "@com_google_flogger",
+        "@com_google_flogger_system_backend",
         "@com_google_guava",
         "@javax_servlet_api",
         "@org_mortbay_jetty",

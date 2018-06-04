@@ -33,7 +33,6 @@ import google.registry.proxy.quota.QuotaConfig;
 import google.registry.proxy.quota.QuotaManager;
 import google.registry.proxy.quota.TokenStore;
 import google.registry.util.Clock;
-import google.registry.util.FormattingLogger;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -51,8 +50,6 @@ import javax.inject.Singleton;
 /** A module that provides the {@link FrontendProtocol} used for epp protocol. */
 @Module
 public class EppProtocolModule {
-
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
 
   /** Dagger qualifier to provide epp protocol related handlers and other bindings. */
   @Qualifier
@@ -136,8 +133,7 @@ public class EppProtocolModule {
     try {
       return readResourceBytes(EppProtocolModule.class, "resources/hello.xml").read();
     } catch (IOException e) {
-      logger.severe(e, "Cannot read EPP <hello> message file.");
-      throw new RuntimeException(e);
+      throw new RuntimeException("Cannot read EPP <hello> message file.", e);
     }
   }
 

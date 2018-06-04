@@ -23,7 +23,6 @@ import dagger.Lazy;
 import dagger.Module;
 import dagger.Provides;
 import google.registry.proxy.ProxyConfig.Environment;
-import google.registry.util.FormattingLogger;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -72,8 +71,6 @@ public class CertificateModule {
   /** Dagger qualifier to provide bindings when running in production. */
   @Qualifier
   public @interface Prod {}
-
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
 
   static {
     Security.addProvider(new BouncyCastleProvider());
@@ -159,8 +156,7 @@ public class CertificateModule {
           listBuilder.add(obj);
         }
       } catch (IOException e) {
-        logger.severe(e, "Cannot parse PEM file correctly.");
-        throw new RuntimeException(e);
+        throw new RuntimeException("Cannot parse PEM file correctly.", e);
       }
     }
     return listBuilder.build();
@@ -176,8 +172,8 @@ public class CertificateModule {
           try {
             return converter.getKeyPair(pemKeyPair).getPrivate();
           } catch (PEMException e) {
-            logger.severefmt(e, "Error converting private key: %s", pemKeyPair);
-            throw new RuntimeException(e);
+            throw new RuntimeException(
+                String.format("Error converting private key: %s", pemKeyPair), e);
           }
         };
     ImmutableList<PrivateKey> privateKeys =
@@ -200,8 +196,8 @@ public class CertificateModule {
           try {
             return converter.getCertificate(certificateHolder);
           } catch (CertificateException e) {
-            logger.severefmt(e, "Error converting certificate: %s", certificateHolder);
-            throw new RuntimeException(e);
+            throw new RuntimeException(
+                String.format("Error converting certificate: %s", certificateHolder), e);
           }
         };
     ImmutableList<X509Certificate> certificates =

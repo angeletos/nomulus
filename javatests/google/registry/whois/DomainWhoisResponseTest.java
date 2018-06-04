@@ -70,7 +70,11 @@ public class DomainWhoisResponseTest {
     // Update the registrar to have an IANA ID.
     Registrar registrar =
         persistResource(
-            loadRegistrar("NewRegistrar").asBuilder().setIanaIdentifier(5555555L).build());
+            loadRegistrar("NewRegistrar")
+                .asBuilder()
+                .setUrl("http://my.fake.url")
+                .setIanaIdentifier(5555555L)
+                .build());
 
     persistResource(
         new RegistrarContact.Builder()
@@ -113,7 +117,7 @@ public class DomainWhoisResponseTest {
             new PostalInfo.Builder()
             .setType(PostalInfo.Type.INTERNATIONALIZED)
             .setName("EXAMPLE REGISTRANT")
-            .setOrg("EXAMPLE ORGANIZATION")
+            .setOrg("Tom & Jerry Corp.")
             .setAddress(new ContactAddress.Builder()
                 .setStreet(ImmutableList.of("123 EXAMPLE STREET"))
                 .setCity("ANYTOWN")
@@ -251,7 +255,7 @@ public class DomainWhoisResponseTest {
   @Test
   public void getPlainTextOutputTest() {
     DomainWhoisResponse domainWhoisResponse =
-        new DomainWhoisResponse(domainResource, clock.nowUtc());
+        new DomainWhoisResponse(domainResource, false, clock.nowUtc());
     assertThat(
             domainWhoisResponse.getResponse(
                 false,
@@ -260,10 +264,21 @@ public class DomainWhoisResponseTest {
   }
 
   @Test
+  public void getPlainTextOutputTest_fullOutput() {
+    DomainWhoisResponse domainWhoisResponse =
+        new DomainWhoisResponse(domainResource, true, clock.nowUtc());
+    assertThat(
+            domainWhoisResponse.getResponse(
+                false,
+                "Doodle Disclaimer\nI exist so that carriage return\nin disclaimer can be tested."))
+        .isEqualTo(WhoisResponseResults.create(loadFile("whois_domain_full_output.txt"), 1));
+  }
+
+  @Test
   public void addImplicitOkStatusTest() {
     DomainWhoisResponse domainWhoisResponse =
         new DomainWhoisResponse(
-            domainResource.asBuilder().setStatusValues(null).build(), clock.nowUtc());
+            domainResource.asBuilder().setStatusValues(null).build(), false, clock.nowUtc());
     assertThat(
             domainWhoisResponse
                 .getResponse(

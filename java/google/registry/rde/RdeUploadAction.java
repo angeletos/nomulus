@@ -29,6 +29,7 @@ import static java.util.Arrays.asList;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.io.ByteStreams;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
@@ -50,9 +51,8 @@ import google.registry.request.RequestParameters;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
 import google.registry.util.Clock;
-import google.registry.util.FormattingLogger;
 import google.registry.util.Retrier;
-import google.registry.util.TaskEnqueuer;
+import google.registry.util.TaskQueueUtils;
 import google.registry.util.TeeOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -86,7 +86,7 @@ public final class RdeUploadAction implements Runnable, EscrowTask {
 
   static final String PATH = "/_dr/task/rdeUpload";
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Inject Clock clock;
   @Inject GcsUtils gcsUtils;
@@ -108,7 +108,7 @@ public final class RdeUploadAction implements Runnable, EscrowTask {
   @Inject RydePgpFileOutputStreamFactory pgpFileFactory;
   @Inject RydePgpSigningOutputStreamFactory pgpSigningFactory;
   @Inject RydeTarOutputStreamFactory tarFactory;
-  @Inject TaskEnqueuer taskEnqueuer;
+  @Inject TaskQueueUtils taskQueueUtils;
   @Inject Retrier retrier;
   @Inject @Parameter(RequestParameters.PARAM_TLD) String tld;
   @Inject @Config("rdeBucket") String bucket;
@@ -125,7 +125,7 @@ public final class RdeUploadAction implements Runnable, EscrowTask {
   @Override
   public void run() {
     runner.lockRunAndRollForward(this, Registry.get(tld), timeout, CursorType.RDE_UPLOAD, interval);
-    taskEnqueuer.enqueue(
+    taskQueueUtils.enqueue(
         reportQueue,
         withUrl(RdeReportAction.PATH).param(RequestParameters.PARAM_TLD, tld));
   }
@@ -135,14 +135,15 @@ public final class RdeUploadAction implements Runnable, EscrowTask {
     DateTime stagingCursorTime = getCursorTimeOrStartOfTime(
         ofy().load().key(Cursor.createKey(CursorType.RDE_STAGING, Registry.get(tld))).now());
     if (!stagingCursorTime.isAfter(watermark)) {
-      logger.infofmt("tld=%s uploadCursor=%s stagingCursor=%s", tld, watermark, stagingCursorTime);
+      logger.atInfo().log(
+          "tld=%s uploadCursor=%s stagingCursor=%s", tld, watermark, stagingCursorTime);
       throw new ServiceUnavailableException("Waiting for RdeStagingAction to complete");
     }
     DateTime sftpCursorTime = getCursorTimeOrStartOfTime(
         ofy().load().key(Cursor.createKey(RDE_UPLOAD_SFTP, Registry.get(tld))).now());
     if (sftpCursorTime.plus(sftpCooldown).isAfter(clock.nowUtc())) {
       // Fail the task good and hard so it retries until the cooldown passes.
-      logger.infofmt("tld=%s cursor=%s sftpCursor=%s", tld, watermark, sftpCursorTime);
+      logger.atInfo().log("tld=%s cursor=%s sftpCursor=%s", tld, watermark, sftpCursorTime);
       throw new ServiceUnavailableException("SFTP cooldown has not yet passed");
     }
     int revision = RdeRevision.getNextRevision(tld, watermark, FULL) - 1;
@@ -199,7 +200,7 @@ public final class RdeUploadAction implements Runnable, EscrowTask {
   @VisibleForTesting
   protected void upload(
       GcsFilename xmlFile, long xmlLength, DateTime watermark, String name) throws Exception {
-    logger.infofmt("Uploading %s to %s", xmlFile, uploadUrl);
+    logger.atInfo().log("Uploading %s to %s", xmlFile, uploadUrl);
     try (InputStream gcsInput = gcsUtils.openInputStream(xmlFile);
         Ghostryde.Decryptor decryptor = ghostryde.openDecryptor(gcsInput, stagingDecryptionKey);
         Ghostryde.Decompressor decompressor = ghostryde.openDecompressor(decryptor);
@@ -221,12 +222,12 @@ public final class RdeUploadAction implements Runnable, EscrowTask {
             ByteStreams.copy(xmlInput, tarLayer);
           }
           signature = signer.getSignature();
-          logger.infofmt("uploaded %,d bytes: %s.ryde", signer.getBytesWritten(), name);
+          logger.atInfo().log("uploaded %,d bytes: %s.ryde", signer.getBytesWritten(), name);
         }
         String sigFilename = name + ".sig";
         gcsUtils.createFromBytes(new GcsFilename(bucket, sigFilename), signature);
         ftpChan.get().put(new ByteArrayInputStream(signature), sigFilename);
-        logger.infofmt("uploaded %,d bytes: %s.sig", signature.length, name);
+        logger.atInfo().log("uploaded %,d bytes: %s.sig", signature.length, name);
       }
     }
   }

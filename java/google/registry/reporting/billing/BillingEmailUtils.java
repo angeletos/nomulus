@@ -23,7 +23,6 @@ import com.google.common.io.CharStreams;
 import google.registry.config.RegistryConfig.Config;
 import google.registry.gcs.GcsUtils;
 import google.registry.reporting.billing.BillingModule.InvoiceDirectoryPrefix;
-import google.registry.util.FormattingLogger;
 import google.registry.util.Retrier;
 import google.registry.util.SendEmailService;
 import java.io.IOException;
@@ -75,8 +74,6 @@ class BillingEmailUtils {
     this.retrier = retrier;
   }
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
-
   /** Sends an e-mail to all expected recipients with an attached overall invoice from GCS. */
   void emailOverallInvoice() {
     try {
@@ -114,13 +111,12 @@ class BillingEmailUtils {
           IOException.class,
           MessagingException.class);
     } catch (Throwable e) {
-      logger.severe(e, "Emailing invoice failed");
       // Strip one layer, because callWithRetry wraps in a RuntimeException
       sendAlertEmail(
           String.format(
               "Emailing invoice failed due to %s",
               getRootCause(e).getMessage()));
-      throw e;
+      throw new RuntimeException("Emailing invoice failed", e);
     }
   }
 
@@ -139,8 +135,7 @@ class BillingEmailUtils {
           },
           MessagingException.class);
     } catch (Throwable e) {
-      logger.severe(e, "The alert e-mail system failed.");
-      throw e;
+      throw new RuntimeException("The alert e-mail system failed.", e);
     }
   }
 }

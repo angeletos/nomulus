@@ -18,6 +18,7 @@ import static google.registry.model.ofy.ObjectifyService.ofy;
 import static google.registry.xml.XmlTransformer.prettyPrint;
 
 import com.google.common.base.Strings;
+import com.google.common.flogger.FluentLogger;
 import google.registry.flows.FlowModule.ClientId;
 import google.registry.flows.FlowModule.DryRun;
 import google.registry.flows.FlowModule.InputXml;
@@ -27,20 +28,15 @@ import google.registry.flows.session.LoginFlow;
 import google.registry.model.eppcommon.Trid;
 import google.registry.model.eppoutput.EppOutput;
 import google.registry.monitoring.whitebox.EppMetric;
-import google.registry.util.FormattingLogger;
-import java.util.logging.Level;
 import javax.inject.Inject;
 import javax.inject.Provider;
 
 /** Run a flow, either transactionally or not, with logging and retrying as needed. */
 public class FlowRunner {
 
-  /** Log format used by legacy ICANN reporting parsing - DO NOT CHANGE. */
-  // TODO(b/20725722): remove this log format entirely once we've transitioned to using the
-  //   JSON log line below instead, or change this one to be for human consumption only.
-  private static final String COMMAND_LOG_FORMAT = "EPP Command" + Strings.repeat("\n\t%s", 7);
+  private static final String COMMAND_LOG_FORMAT = "EPP Command" + Strings.repeat("\n\t%s", 8);
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Inject @ClientId String clientId;
   @Inject TransportCredentials credentials;
@@ -59,22 +55,17 @@ public class FlowRunner {
   /** Runs the EPP flow, and records metrics on the given builder. */
   public EppOutput run(final EppMetric.Builder eppMetricBuilder) throws EppException {
     String prettyXml = prettyPrint(inputXmlBytes);
-    // This log line is very fragile since it's used for ICANN reporting - DO NOT CHANGE.
-    // New data to be logged should be added only to the JSON log statement below.
-    // TODO(b/20725722): remove this log statement entirely once we've transitioned to using the
-    //   log line below instead, or change this one to be for human consumption only.
-    if (logger.isLoggable(Level.INFO)) {
-      logger.infofmt(
-          COMMAND_LOG_FORMAT,
-          trid.getServerTransactionId(),
-          clientId,
-          sessionMetadata,
-          prettyXml.replace("\n", "\n\t"),
-          credentials,
-          eppRequestSource,
-          isDryRun ? "DRY_RUN" : "LIVE",
-          isSuperuser ? "SUPERUSER" : "NORMAL");
-    }
+
+    logger.atInfo().log(
+        COMMAND_LOG_FORMAT,
+        trid.getServerTransactionId(),
+        clientId,
+        sessionMetadata,
+        prettyXml.replace("\n", "\n\t"),
+        credentials,
+        eppRequestSource,
+        isDryRun ? "DRY_RUN" : "LIVE",
+        isSuperuser ? "SUPERUSER" : "NORMAL");
     // Record flow info to the GAE request logs for reporting purposes if it's not a dry run.
     if (!isDryRun) {
       flowReporter.recordToLogs();

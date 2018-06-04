@@ -20,6 +20,7 @@ import static google.registry.model.registrar.Registrar.State.ACTIVE;
 import static google.registry.model.registrar.Registrar.Type.PDT;
 import static google.registry.model.registry.Registries.getTlds;
 import static google.registry.testing.DatastoreHelper.createTlds;
+import static google.registry.testing.DatastoreHelper.loadRegistrar;
 import static google.registry.testing.DatastoreHelper.persistActiveDomain;
 import static google.registry.testing.DatastoreHelper.persistResource;
 import static google.registry.testing.DatastoreHelper.persistSimpleResources;
@@ -114,7 +115,7 @@ public class WhoisActionTest {
   @Test
   public void testRun_domainQuery_works() {
     Registrar registrar =
-        persistResource(makeRegistrar("evilregistrar", "Yes Virginia <script>", ACTIVE));
+        persistResource(makeRegistrar("evilregistrar", "Yes Virginia", ACTIVE));
     persistResource(
         makeDomainResource(
             "cat.lol",
@@ -133,7 +134,7 @@ public class WhoisActionTest {
   @Test
   public void testRun_domainQuery_usesCache() {
     Registrar registrar =
-        persistResource(makeRegistrar("evilregistrar", "Yes Virginia <script>", ACTIVE));
+        persistResource(makeRegistrar("evilregistrar", "Yes Virginia", ACTIVE));
     persistResource(
         makeDomainResource(
             "cat.lol",
@@ -169,7 +170,7 @@ public class WhoisActionTest {
   @Test
   public void testRun_idnDomain_works() throws Exception {
     Registrar registrar = persistResource(makeRegistrar(
-        "evilregistrar", "Yes Virginia <script>", ACTIVE));
+        "evilregistrar", "Yes Virginia", ACTIVE));
     persistResource(makeDomainResource(
         "cat.みんな",
         persistResource(makeContactResource("5372808-ERL", "(◕‿◕)", "lol@cat.みんな")),
@@ -187,7 +188,7 @@ public class WhoisActionTest {
   @Test
   public void testRun_punycodeDomain_works() throws Exception {
     Registrar registrar = persistResource(makeRegistrar(
-        "evilregistrar", "Yes Virginia <script>", ACTIVE));
+        "evilregistrar", "Yes Virginia", ACTIVE));
     persistResource(makeDomainResource(
         "cat.みんな",
         persistResource(makeContactResource("5372808-ERL", "(◕‿◕)", "lol@cat.みんな")),
@@ -226,7 +227,7 @@ public class WhoisActionTest {
   public void testRun_domainInTestTld_isConsideredNotFound() throws Exception {
     persistResource(Registry.get("lol").asBuilder().setTldType(Registry.TldType.TEST).build());
     Registrar registrar = persistResource(makeRegistrar(
-        "evilregistrar", "Yes Virginia <script>", ACTIVE));
+        "evilregistrar", "Yes Virginia", ACTIVE));
     persistResource(makeDomainResource(
         "cat.lol",
         persistResource(makeContactResource("5372808-ERL", "Goblin Market", "lol@cat.lol")),
@@ -304,6 +305,7 @@ public class WhoisActionTest {
 
   @Test
   public void testRun_nameserverQuery_works() throws Exception {
+    persistResource(loadRegistrar("TheRegistrar").asBuilder().setUrl("http://my.fake.url").build());
     persistResource(makeHostResource("ns1.cat.lol", "1.2.3.4"));
     newWhoisAction("nameserver ns1.cat.lol\r\n").run();
     assertThat(response.getStatus()).isEqualTo(200);
@@ -552,7 +554,7 @@ public class WhoisActionTest {
     persistResource(makeHostResource("ns1.cat.lol", "1.2.3.4"));
     WhoisAction action = newWhoisAction("ns1.cat.lol");
     action.whoisReader = mock(WhoisReader.class);
-    when(action.whoisReader.readCommand(any(Reader.class), any(DateTime.class)))
+    when(action.whoisReader.readCommand(any(Reader.class), eq(false), any(DateTime.class)))
         .thenThrow(new IOException("missing cat interface"));
     action.whoisMetrics = mock(WhoisMetrics.class);
 
@@ -568,14 +570,19 @@ public class WhoisActionTest {
 
   @Test
   public void testRun_retryOnTransientFailure() throws Exception {
+    persistResource(loadRegistrar("TheRegistrar").asBuilder().setUrl("http://my.fake.url").build());
     persistResource(makeHostResource("ns1.cat.lol", "1.2.3.4"));
     WhoisAction action = newWhoisAction("ns1.cat.lol");
     WhoisResponse expectedResponse =
-        action.whoisReader.readCommand(action.input, clock.nowUtc()).executeQuery(clock.nowUtc());
+        action
+            .whoisReader
+            .readCommand(action.input, false, clock.nowUtc())
+            .executeQuery(clock.nowUtc());
 
     WhoisReader mockReader = mock(WhoisReader.class);
     WhoisCommand mockCommand = mock(WhoisCommand.class);
-    when(mockReader.readCommand(any(Reader.class), any(DateTime.class))).thenReturn(mockCommand);
+    when(mockReader.readCommand(any(Reader.class), eq(false), any(DateTime.class)))
+        .thenReturn(mockCommand);
     when(mockCommand.executeQuery(any(DateTime.class)))
         .thenThrow(new DatastoreFailureException("Expected transient exception #1"))
         .thenThrow(new DatastoreTimeoutException("Expected transient exception #2"))

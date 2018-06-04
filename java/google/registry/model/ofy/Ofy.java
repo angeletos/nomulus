@@ -28,6 +28,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
+import com.google.common.flogger.FluentLogger;
 import com.googlecode.objectify.Key;
 import com.googlecode.objectify.Objectify;
 import com.googlecode.objectify.ObjectifyFactory;
@@ -39,7 +40,6 @@ import google.registry.model.annotations.NotBackedUp;
 import google.registry.model.annotations.VirtualEntity;
 import google.registry.model.ofy.ReadOnlyWork.KillTransactionException;
 import google.registry.util.Clock;
-import google.registry.util.FormattingLogger;
 import google.registry.util.NonFinalForTesting;
 import google.registry.util.Sleeper;
 import google.registry.util.SystemClock;
@@ -59,7 +59,7 @@ import org.joda.time.Duration;
  */
 public class Ofy {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /** Default clock for transactions that don't provide one. */
   @NonFinalForTesting
@@ -263,7 +263,8 @@ public class Ofy {
           throw e;  // Give up.
         }
         sleeper.sleepUninterruptibly(Duration.millis(sleepMillis));
-        logger.infofmt(e, "Retrying %s, attempt %s", e.getClass().getSimpleName(), attempt);
+        logger.atInfo().withCause(e).log(
+            "Retrying %s, attempt %d", e.getClass().getSimpleName(), attempt);
       }
     }
   }

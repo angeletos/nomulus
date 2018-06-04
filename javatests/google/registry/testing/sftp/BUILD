@@ -11,6 +11,8 @@ java_library(
     deps = [
         "//java/google/registry/util",
         "@com_google_code_findbugs_jsr305",
+        "@com_google_flogger",
+        "@com_google_flogger_system_backend",
         "@com_google_guava",
         "@junit",
         "@org_apache_ftpserver_core",

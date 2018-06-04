@@ -20,6 +20,7 @@ import static google.registry.request.Action.Method.POST;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.FluentLogger;
 import google.registry.model.registry.label.PremiumList;
 import google.registry.request.Action;
 import google.registry.request.auth.Auth;
@@ -38,20 +39,22 @@ import javax.inject.Inject;
 )
 public class UpdatePremiumListAction extends CreateOrUpdatePremiumListAction {
 
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
+
   public static final String PATH = "/_dr/admin/updatePremiumList";
 
   @Inject UpdatePremiumListAction() {}
 
   @Override
   protected void savePremiumList() {
-    Optional<PremiumList> existingPremiumList = PremiumList.get(name);
+    Optional<PremiumList> existingPremiumList = PremiumList.getUncached(name);
     checkArgument(
         existingPremiumList.isPresent(),
         "Could not update premium list %s because it doesn't exist.",
         name);
 
-    logger.infofmt("Updating premium list for TLD %s", name);
-    logger.infofmt("Got the following input data: %s", inputData);
+    logger.atInfo().log("Updating premium list for TLD %s", name);
+    logInputData();
     List<String> inputDataPreProcessed =
         Splitter.on('\n').omitEmptyStrings().splitToList(inputData);
     PremiumList newPremiumList =
@@ -61,7 +64,7 @@ public class UpdatePremiumListAction extends CreateOrUpdatePremiumListAction {
         String.format(
             "Updated premium list %s with %d entries.",
             newPremiumList.getName(), inputDataPreProcessed.size());
-    logger.info(message);
+    logger.atInfo().log(message);
     response.setPayload(ImmutableMap.of("status", "success", "message", message));
   }
 }

@@ -33,9 +33,9 @@ import com.google.appengine.tools.mapreduce.outputs.NoOutput;
 import com.google.appengine.tools.pipeline.Job0;
 import com.google.appengine.tools.pipeline.JobSetting;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.FluentLogger;
 import google.registry.mapreduce.inputs.ConcatenatingInput;
 import google.registry.request.Parameter;
-import google.registry.util.FormattingLogger;
 import google.registry.util.PipelineUtils;
 import java.io.Serializable;
 import java.util.Optional;
@@ -50,7 +50,7 @@ import org.joda.time.Duration;
  */
 public class MapreduceRunner {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   public static final String PARAM_DRY_RUN = "dryRun";
   public static final String PARAM_MAP_SHARDS = "mapShards";
@@ -112,13 +112,13 @@ public class MapreduceRunner {
     return this;
   }
 
-  /** Set the default number of mappers, if not overriden by the http param. */
+  /** Set the default number of mappers, if not overridden by the http param. */
   public MapreduceRunner setDefaultMapShards(int defaultMapShards) {
     this.defaultMapShards = defaultMapShards;
     return this;
   }
 
-  /** Set the default number of reducers, if not overriden by the http param. */
+  /** Set the default number of reducers, if not overridden by the http param. */
   public MapreduceRunner setDefaultReduceShards(int defaultReduceShards) {
     this.defaultReduceShards = defaultReduceShards;
     return this;
@@ -273,11 +273,9 @@ public class MapreduceRunner {
         job,
         new JobSetting.OnModule(moduleName),
         new JobSetting.OnQueue(QUEUE_NAME));
-    logger.infofmt(
+    logger.atInfo().log(
         "Started '%s' %s job: %s",
-        jobName,
-        job instanceof MapJob ? "map" : "mapreduce",
-        PipelineUtils.createJobPath(jobId));
+        jobName, job instanceof MapJob ? "map" : "mapreduce", PipelineUtils.createJobPath(jobId));
     return jobId;
   }
 }

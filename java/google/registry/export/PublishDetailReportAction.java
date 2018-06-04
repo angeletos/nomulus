@@ -20,6 +20,7 @@ import static google.registry.util.PreconditionsUtils.checkArgumentPresent;
 
 import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.io.ByteStreams;
 import com.google.common.net.MediaType;
 import google.registry.gcs.GcsUtils;
@@ -31,7 +32,6 @@ import google.registry.request.JsonActionRunner;
 import google.registry.request.JsonActionRunner.JsonAction;
 import google.registry.request.auth.Auth;
 import google.registry.storage.drive.DriveConnection;
-import google.registry.util.FormattingLogger;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.Map;
@@ -52,7 +52,7 @@ import javax.inject.Inject;
 @Deprecated
 public final class PublishDetailReportAction implements Runnable, JsonAction {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /** MIME type to use for deposited report files in Drive. */
   private static final MediaType REPORT_MIME_TYPE = MediaType.CSV_UTF_8;
@@ -91,7 +91,7 @@ public final class PublishDetailReportAction implements Runnable, JsonAction {
   @Override
   public Map<String, Object> handleJsonRequest(Map<String, ?> json) {
     try {
-      logger.infofmt("Publishing detail report for parameters: %s", json);
+      logger.atInfo().log("Publishing detail report for parameters: %s", json);
       String registrarId = getParam(json, REGISTRAR_ID_PARAM);
       Registrar registrar =
           checkArgumentPresent(
@@ -111,11 +111,9 @@ public final class PublishDetailReportAction implements Runnable, JsonAction {
                 REPORT_MIME_TYPE,
                 driveFolderId,
                 ByteStreams.toByteArray(input));
-        logger.infofmt("Published detail report for %s to folder %s using GCS file gs://%s/%s.",
-            registrarId,
-            driveFolderId,
-            gcsBucketName,
-            gcsObjectName);
+        logger.atInfo().log(
+            "Published detail report for %s to folder %s using GCS file gs://%s/%s.",
+            registrarId, driveFolderId, gcsBucketName, gcsObjectName);
         return ImmutableMap.of("driveId", driveId);
       } catch (FileNotFoundException e) {
         throw new IllegalArgumentException(e.getMessage(), e);

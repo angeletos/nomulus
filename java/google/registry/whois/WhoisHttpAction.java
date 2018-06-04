@@ -28,13 +28,13 @@ import static javax.servlet.http.HttpServletResponse.SC_OK;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.flogger.FluentLogger;
 import google.registry.config.RegistryConfig.Config;
 import google.registry.request.Action;
 import google.registry.request.RequestPath;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
 import google.registry.util.Clock;
-import google.registry.util.FormattingLogger;
 import google.registry.whois.WhoisMetrics.WhoisMetric;
 import google.registry.whois.WhoisResponse.WhoisResponseResults;
 import java.io.IOException;
@@ -100,7 +100,7 @@ public final class WhoisHttpAction implements Runnable {
 
   public static final String PATH = "/whois/";
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /**
    * Cross-origin resource sharing (CORS) allowed origins policy.
@@ -151,7 +151,7 @@ public final class WhoisHttpAction implements Runnable {
       String commandText =
           decode(JOINER.join(SLASHER.split(path.substring(PATH.length())))) + "\r\n";
       DateTime now = clock.nowUtc();
-      WhoisCommand command = whoisReader.readCommand(new StringReader(commandText), now);
+      WhoisCommand command = whoisReader.readCommand(new StringReader(commandText), false, now);
       metricBuilder.setCommand(command);
       sendResponse(SC_OK, command.executeQuery(now));
     } catch (WhoisException e) {
@@ -187,7 +187,7 @@ public final class WhoisHttpAction implements Runnable {
     try {
       return URLDecoder.decode(pathData, "UTF-8");
     } catch (IllegalArgumentException e) {
-      logger.infofmt("Malformed WHOIS request path: %s (%s)", requestPath, pathData);
+      logger.atInfo().log("Malformed WHOIS request path: %s (%s)", requestPath, pathData);
       throw new WhoisException(clock.nowUtc(), SC_BAD_REQUEST, "Malformed path query.");
     }
   }

@@ -27,8 +27,8 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.FluentLogger;
 import google.registry.model.registrar.Registrar;
-import google.registry.util.FormattingLogger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +37,7 @@ import org.joda.time.DateTime;
 /** Represents a WHOIS lookup for a registrar by its name. */
 final class RegistrarLookupCommand implements WhoisCommand {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /**
    * Cache of a map from a stripped-down (letters and digits only) name to the registrar. This map
@@ -56,7 +56,7 @@ final class RegistrarLookupCommand implements WhoisCommand {
               }
               String normalized = normalizeRegistrarName(registrar.getRegistrarName());
               if (map.put(normalized, registrar) != null) {
-                logger.warningfmt(
+                logger.atWarning().log(
                     "%s appeared as a normalized registrar name for more than one registrar.",
                     normalized);
               }

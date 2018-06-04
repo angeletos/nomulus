@@ -16,11 +16,11 @@ package google.registry.rde;
 
 import static com.google.common.base.Preconditions.checkState;
 import static google.registry.model.ofy.ObjectifyService.ofy;
-import static google.registry.util.FormattingLogger.getLoggerForCallerClass;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.flogger.FluentLogger;
 import com.googlecode.objectify.Key;
 import google.registry.model.contact.ContactResource;
 import google.registry.model.domain.DesignatedContact;
@@ -31,7 +31,6 @@ import google.registry.model.eppcommon.StatusValue;
 import google.registry.model.rde.RdeMode;
 import google.registry.model.transfer.TransferData;
 import google.registry.model.transfer.TransferStatus;
-import google.registry.util.FormattingLogger;
 import google.registry.util.Idn;
 import google.registry.xjc.domain.XjcDomainContactAttrType;
 import google.registry.xjc.domain.XjcDomainContactType;
@@ -51,7 +50,7 @@ import org.joda.time.DateTime;
 /** Utility class that turns {@link DomainResource} as {@link XjcRdeDomainElement}. */
 final class DomainResourceToXjcConverter {
 
-  private static final FormattingLogger logger = getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /** Converts {@link DomainResource} to {@link XjcRdeDomainElement}. */
   static XjcRdeDomainElement convert(DomainResource domain, RdeMode mode) {
@@ -126,7 +125,7 @@ final class DomainResourceToXjcConverter {
     // o  An OPTIONAL <trDate> element that contains the date and time of
     //    the most recent domain object successful transfer.  This element
     //    MUST NOT be present if the domain name object has never been
-    //    transfered.
+    //    transferred.
     bean.setTrDate(model.getLastTransferTime());
 
     // o  One or more <status> elements that contain the current status
@@ -172,7 +171,7 @@ final class DomainResourceToXjcConverter {
         //    as the holder of the domain name object.
         Key<ContactResource> registrant = model.getRegistrant();
         if (registrant == null) {
-          logger.warningfmt("Domain %s has no registrant contact.", domainName);
+          logger.atWarning().log("Domain %s has no registrant contact.", domainName);
         } else {
           ContactResource registrantContact = ofy().load().key(registrant).now();
           checkState(

@@ -36,14 +36,14 @@ import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Streams;
+import com.google.common.flogger.FluentLogger;
 import google.registry.request.Action;
 import google.registry.request.Parameter;
 import google.registry.request.ParameterMap;
 import google.registry.request.RequestParameters;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
-import google.registry.util.FormattingLogger;
-import google.registry.util.TaskEnqueuer;
+import google.registry.util.TaskQueueUtils;
 import java.util.Optional;
 import java.util.Random;
 import java.util.stream.Stream;
@@ -101,9 +101,9 @@ public final class TldFanoutAction implements Runnable {
 
   private static final Random random = new Random();
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
-  @Inject TaskEnqueuer taskEnqueuer;
+  @Inject TaskQueueUtils taskQueueUtils;
   @Inject Response response;
   @Inject @Parameter(ENDPOINT_PARAM) String endpoint;
   @Inject @Parameter(QUEUE_PARAM) String queue;
@@ -138,19 +138,19 @@ public final class TldFanoutAction implements Runnable {
     StringBuilder outputPayload =
         new StringBuilder(
             String.format("OK: Launched the following %d tasks in queue %s\n", tlds.size(), queue));
-    logger.infofmt("Launching %d tasks in queue %s", tlds.size(), queue);
+    logger.atInfo().log("Launching %d tasks in queue %s", tlds.size(), queue);
     if (tlds.isEmpty()) {
-      logger.warning("No TLDs to fan-out!");
+      logger.atWarning().log("No TLDs to fan-out!");
     }
     for (String tld : tlds) {
       TaskOptions taskOptions = createTaskOptions(tld, flowThruParams);
-      TaskHandle taskHandle = taskEnqueuer.enqueue(taskQueue, taskOptions);
+      TaskHandle taskHandle = taskQueueUtils.enqueue(taskQueue, taskOptions);
       outputPayload.append(
           String.format(
               "- Task: '%s', tld: '%s', endpoint: '%s'\n",
               taskHandle.getName(), tld, taskOptions.getUrl()));
-      logger.infofmt("Task: '%s', tld: '%s', endpoint: '%s'",
-              taskHandle.getName(), tld, taskOptions.getUrl());
+      logger.atInfo().log(
+          "Task: '%s', tld: '%s', endpoint: '%s'", taskHandle.getName(), tld, taskOptions.getUrl());
     }
     response.setContentType(PLAIN_TEXT_UTF_8);
     response.setPayload(outputPayload.toString());

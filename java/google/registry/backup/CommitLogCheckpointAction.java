@@ -20,15 +20,14 @@ import static google.registry.backup.ExportCommitLogDiffAction.LOWER_CHECKPOINT_
 import static google.registry.backup.ExportCommitLogDiffAction.UPPER_CHECKPOINT_TIME_PARAM;
 import static google.registry.model.ofy.ObjectifyService.ofy;
 import static google.registry.util.DateTimeUtils.isBeforeOrAt;
-import static google.registry.util.FormattingLogger.getLoggerForCallerClass;
 
+import com.google.common.flogger.FluentLogger;
 import google.registry.model.ofy.CommitLogCheckpoint;
 import google.registry.model.ofy.CommitLogCheckpointRoot;
 import google.registry.request.Action;
 import google.registry.request.auth.Auth;
 import google.registry.util.Clock;
-import google.registry.util.FormattingLogger;
-import google.registry.util.TaskEnqueuer;
+import google.registry.util.TaskQueueUtils;
 import javax.inject.Inject;
 import org.joda.time.DateTime;
 
@@ -50,25 +49,27 @@ import org.joda.time.DateTime;
 )
 public final class CommitLogCheckpointAction implements Runnable {
 
-  private static final FormattingLogger logger = getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   private static final String QUEUE_NAME = "export-commits";
 
   @Inject Clock clock;
   @Inject CommitLogCheckpointStrategy strategy;
-  @Inject TaskEnqueuer taskEnqueuer;
+  @Inject TaskQueueUtils taskQueueUtils;
   @Inject CommitLogCheckpointAction() {}
 
   @Override
   public void run() {
     final CommitLogCheckpoint checkpoint = strategy.computeCheckpoint();
-    logger.infofmt("Generated candidate checkpoint for time: %s", checkpoint.getCheckpointTime());
+    logger.atInfo().log(
+        "Generated candidate checkpoint for time: %s", checkpoint.getCheckpointTime());
     ofy()
         .transact(
             () -> {
               DateTime lastWrittenTime = CommitLogCheckpointRoot.loadRoot().getLastWrittenTime();
               if (isBeforeOrAt(checkpoint.getCheckpointTime(), lastWrittenTime)) {
-                logger.infofmt("Newer checkpoint already written at time: %s", lastWrittenTime);
+                logger.atInfo().log(
+                    "Newer checkpoint already written at time: %s", lastWrittenTime);
                 return;
               }
               ofy()
@@ -76,7 +77,7 @@ public final class CommitLogCheckpointAction implements Runnable {
                   .entities(
                       checkpoint, CommitLogCheckpointRoot.create(checkpoint.getCheckpointTime()));
               // Enqueue a diff task between previous and current checkpoints.
-              taskEnqueuer.enqueue(
+              taskQueueUtils.enqueue(
                   getQueue(QUEUE_NAME),
                   withUrl(ExportCommitLogDiffAction.PATH)
                       .param(LOWER_CHECKPOINT_TIME_PARAM, lastWrittenTime.toString())

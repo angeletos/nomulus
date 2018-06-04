@@ -26,13 +26,10 @@ import com.googlecode.objectify.cmd.Query;
 import google.registry.model.EppResource;
 import google.registry.model.index.EppResourceIndex;
 import google.registry.model.index.EppResourceIndexBucket;
-import google.registry.util.FormattingLogger;
 import javax.annotation.Nullable;
 
 /** Base class for {@link InputReader} classes that map over {@link EppResourceIndex}. */
 abstract class EppResourceBaseReader<T> extends RetryingInputReader<EppResourceIndex, T> {
-
-  static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
 
   /** Number of bytes in 1MB of memory, used for memory estimates. */
   static final long ONE_MB = 1024 * 1024;

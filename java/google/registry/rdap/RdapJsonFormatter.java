@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Streams;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.net.InetAddresses;
 import com.googlecode.objectify.Key;
 import google.registry.config.RdapNoticeDescriptor;
@@ -49,7 +50,6 @@ import google.registry.model.registrar.RegistrarContact;
 import google.registry.model.reporting.HistoryEntry;
 import google.registry.request.HttpException.InternalServerErrorException;
 import google.registry.request.HttpException.NotFoundException;
-import google.registry.util.FormattingLogger;
 import google.registry.util.Idn;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -83,7 +83,7 @@ public class RdapJsonFormatter {
   @Inject @Config("rdapHelpMap") ImmutableMap<String, RdapNoticeDescriptor> rdapHelpMap;
   @Inject RdapJsonFormatter() {}
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /**
    * What type of data to generate. Summary data includes only information about the object itself,
@@ -304,8 +304,8 @@ public class RdapJsonFormatter {
     try {
       return RdapJsonFormatter.makeRdapJsonNotice(rdapHelpMap.get(pathSearchString), rdapLinkBase);
     } catch (Exception e) {
-      logger.warningfmt(e, "Error reading RDAP help file: %s", pathSearchString);
-      throw new InternalServerErrorException("unable to read help for " + pathSearchString);
+      throw new InternalServerErrorException(
+          String.format("Error reading RDAP help file: %s", pathSearchString), e);
     }
   }
 
@@ -321,7 +321,7 @@ public class RdapJsonFormatter {
    *        mandates extra boilerplate for domain objects
    * @param notices a list of notices to be inserted before the boilerplate notices. If the TOS
    *        notice is in this list, the method avoids adding a second copy.
-   * @param remarks a list of remarks to be inserted before the boilerplate notices.
+   * @param remarks a list of remarks to be inserted.
    * @param rdapLinkBase the base for link URLs
    */
   void addTopLevelEntries(
@@ -347,24 +347,20 @@ public class RdapJsonFormatter {
     if (!tosNoticeFound) {
       noticesBuilder.add(tosNotice);
     }
-    jsonBuilder.put(NOTICES, noticesBuilder.build());
-    ImmutableList.Builder<ImmutableMap<String, Object>> remarksBuilder =
-        new ImmutableList.Builder<>();
-    remarksBuilder.addAll(remarks);
     switch (boilerplateType) {
       case DOMAIN:
-        remarksBuilder.addAll(RdapIcannStandardInformation.domainBoilerplateRemarks);
+        noticesBuilder.addAll(RdapIcannStandardInformation.domainBoilerplateNotices);
         break;
       case NAMESERVER:
       case ENTITY:
-        remarksBuilder.addAll(RdapIcannStandardInformation.nameserverAndEntityBoilerplateRemarks);
+        noticesBuilder.addAll(RdapIcannStandardInformation.nameserverAndEntityBoilerplateNotices);
         break;
-      default: // things other than domains, nameservers and entities cannot contain remarks
+      default: // things other than domains, nameservers and entities do not yet have boilerplate
         break;
     }
-    ImmutableList<ImmutableMap<String, Object>> remarksToAdd = remarksBuilder.build();
-    if (!remarksToAdd.isEmpty()) {
-      jsonBuilder.put(REMARKS, remarksToAdd);
+    jsonBuilder.put(NOTICES, noticesBuilder.build());
+    if (!remarks.isEmpty()) {
+      jsonBuilder.put(REMARKS, remarks);
     }
   }
 
@@ -1100,6 +1096,16 @@ public class RdapJsonFormatter {
     //    "Hometown", "PA", "18252", "U.S.A."
     //    ]
     //   ]
+    //
+    // Gustavo further clarified that the embedded array should only be used if there is more than
+    // one line:
+    //
+    //   My reading of RFC 7095 is that if only one element is known, it must be a string. If
+    //   multiple elements are known (e.g. two or three street elements were provided in the case of
+    //   the EPP contact data model), an array must be used.
+    //
+    //   I don’t think that one street address line nested in a single-element array is valid
+    //   according to RFC 7095.
     ImmutableList<String> street = address.getStreet();
     if (street.isEmpty()) {
       jsonBuilder.add("");

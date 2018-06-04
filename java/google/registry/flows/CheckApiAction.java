@@ -29,6 +29,7 @@ import static org.json.simple.JSONValue.toJSONString;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.net.InternetDomainName;
 import com.google.common.net.MediaType;
 import com.google.template.soy.SoyFileSet;
@@ -46,7 +47,6 @@ import google.registry.request.Parameter;
 import google.registry.request.RequestParameters;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
-import google.registry.util.FormattingLogger;
 import java.util.Map;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -64,7 +64,7 @@ import javax.servlet.http.HttpServletRequest;
 )
 public class CheckApiAction implements Runnable {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   private static final SoyTofu TOFU =
       SoyFileSet.builder().add(getResource(DomainCheckFeeEppSoyInfo.class,
@@ -138,7 +138,7 @@ public class CheckApiAction implements Runnable {
       }
       return builder.build();
     } catch (Exception e) {
-      logger.warning(e, "Unknown error");
+      logger.atWarning().withCause(e).log("Unknown error");
       return fail("Invalid request");
     }
   }

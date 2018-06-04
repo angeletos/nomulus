@@ -24,16 +24,15 @@ import com.google.appengine.api.urlfetch.HTTPRequest;
 import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.io.ByteSource;
 import google.registry.request.Action;
 import google.registry.request.Header;
-import google.registry.request.HttpException.BadRequestException;
 import google.registry.request.HttpException.ConflictException;
 import google.registry.request.Parameter;
 import google.registry.request.RequestParameters;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
-import google.registry.util.FormattingLogger;
 import google.registry.util.UrlFetchException;
 import java.io.IOException;
 import java.net.URL;
@@ -60,14 +59,12 @@ import javax.inject.Inject;
 )
 public final class NordnVerifyAction implements Runnable {
 
-  public static final String PARAM_CSV_DATA = "csvData";
-
   static final String PATH = "/_dr/task/nordnVerify";
   static final String QUEUE = "marksdb";
   static final String URL_HEADER = "X-DomainRegistry-Nordn-Url";
   static final String HEADER_ACTION_LOG_ID = "X-DomainRegistry-ActionLogId";
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Inject LordnRequestInitializer lordnRequestInitializer;
   @Inject Response response;
@@ -75,7 +72,6 @@ public final class NordnVerifyAction implements Runnable {
   @Inject @Header(URL_HEADER) URL url;
   @Inject @Header(HEADER_ACTION_LOG_ID) String actionLogId;
   @Inject @Parameter(RequestParameters.PARAM_TLD) String tld;
-  @Inject @Parameter(PARAM_CSV_DATA) String csvData;
   @Inject NordnVerifyAction() {}
 
   @Override
@@ -99,15 +95,12 @@ public final class NordnVerifyAction implements Runnable {
    */
   @VisibleForTesting
   LordnLog verify() throws IOException {
-    if (csvData.isEmpty()) {
-      throw new BadRequestException(
-          String.format("LORDN verify task %s: Missing CSV payload.", actionLogId));
-    }
-    logger.infofmt("LORDN verify task %s: Sending request to URL %s.", actionLogId, url);
+    logger.atInfo().log("LORDN verify task %s: Sending request to URL %s.", actionLogId, url);
     HTTPRequest req = new HTTPRequest(url, GET, validateCertificate().setDeadline(60d));
     lordnRequestInitializer.initialize(req, tld);
     HTTPResponse rsp = fetchService.fetch(req);
-    logger.infofmt("LORDN verify task %s response: HTTP response code %d, response data: %s",
+    logger.atInfo().log(
+        "LORDN verify task %s response: HTTP response code %d, response data: %s",
         actionLogId, rsp.getResponseCode(), rsp.getContent());
     if (rsp.getResponseCode() == SC_NO_CONTENT) {
       // Send a 400+ status code so App Engine will retry the task.
@@ -122,9 +115,10 @@ public final class NordnVerifyAction implements Runnable {
     LordnLog log =
         LordnLog.parse(ByteSource.wrap(rsp.getContent()).asCharSource(UTF_8).readLines());
     if (log.getStatus() == LordnLog.Status.ACCEPTED) {
-      logger.infofmt("LORDN verify task %s: Upload accepted", actionLogId);
+      logger.atInfo().log("LORDN verify task %s: Upload accepted", actionLogId);
     } else {
-      logger.severefmt("LORDN verify task %s: Upload rejected with reason: %s", actionLogId, log);
+      logger.atSevere().log(
+          "LORDN verify task %s: Upload rejected with reason: %s", actionLogId, log);
     }
     for (Entry<String, LordnLog.Result> result : log) {
       switch (result.getValue().getOutcome()) {
@@ -133,11 +127,11 @@ public final class NordnVerifyAction implements Runnable {
         case WARNING:
           // fall through
         case ERROR:
-          logger.warning(result.toString());
+          logger.atWarning().log(result.toString());
           break;
         default:
-          logger.warningfmt(
-              "LORDN verify task %s: Unexpected outcome: %s", actionLogId, result.toString());
+          logger.atWarning().log(
+              "LORDN verify task %s: Unexpected outcome: %s", actionLogId, result);
           break;
       }
     }

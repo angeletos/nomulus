@@ -80,7 +80,7 @@ public final class FullFieldsTestEntityHelper {
       .setFaxNumber("+1.2125551213")
       .setEmailAddress("contact-us@example.com")
       .setWhoisServer("whois.example.com")
-      .setReferralUrl("http://www.example.com")
+      .setUrl("http://my.fake.url")
       .build();
   }
 

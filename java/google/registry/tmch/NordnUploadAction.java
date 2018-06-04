@@ -34,13 +34,14 @@ import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.urlfetch.HTTPRequest;
 import com.google.appengine.api.urlfetch.HTTPResponse;
 import com.google.appengine.api.urlfetch.URLFetchService;
+import com.google.common.flogger.FluentLogger;
 import google.registry.config.RegistryConfig.Config;
 import google.registry.request.Action;
 import google.registry.request.Parameter;
 import google.registry.request.RequestParameters;
 import google.registry.request.auth.Auth;
 import google.registry.util.Clock;
-import google.registry.util.FormattingLogger;
+import google.registry.util.TaskQueueUtils;
 import google.registry.util.UrlFetchException;
 import java.io.IOException;
 import java.net.URL;
@@ -69,7 +70,7 @@ public final class NordnUploadAction implements Runnable {
   static final String PATH = "/_dr/task/nordnUpload";
   static final String LORDN_PHASE_PARAM = "lordn-phase";
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /**
    * A unique (enough) id that is outputted in log lines to make it clear which log lines are
@@ -84,6 +85,7 @@ public final class NordnUploadAction implements Runnable {
   @Inject @Config("tmchMarksdbUrl") String tmchMarksdbUrl;
   @Inject @Parameter(LORDN_PHASE_PARAM) String phase;
   @Inject @Parameter(RequestParameters.PARAM_TLD) String tld;
+  @Inject TaskQueueUtils taskQueueUtils;
   @Inject NordnUploadAction() {}
 
   /**
@@ -117,7 +119,7 @@ public final class NordnUploadAction implements Runnable {
     if (!tasks.isEmpty()) {
       String csvData = convertTasksToCsv(tasks, now, columns);
       uploadCsvToLordn(String.format("/LORDN/%s/%s", tld, phase), csvData);
-      queue.deleteTask(tasks);
+      taskQueueUtils.deleteTasks(queue, tasks);
     }
   }
 
@@ -132,13 +134,14 @@ public final class NordnUploadAction implements Runnable {
    */
   private void uploadCsvToLordn(String urlPath, String csvData) throws IOException {
     String url = tmchMarksdbUrl + urlPath;
-    logger.infofmt("LORDN upload task %s: Sending to URL: %s ; data: %s",
-        actionLogId, url, csvData);
+    logger.atInfo().log(
+        "LORDN upload task %s: Sending to URL: %s ; data: %s", actionLogId, url, csvData);
     HTTPRequest req = new HTTPRequest(new URL(url), POST, validateCertificate().setDeadline(60d));
     lordnRequestInitializer.initialize(req, tld);
     setPayloadMultipart(req, "file", "claims.csv", CSV_UTF_8, csvData);
     HTTPResponse rsp = fetchService.fetch(req);
-    logger.infofmt("LORDN upload task %s response: HTTP response code %d, response data: %s",
+    logger.atInfo().log(
+        "LORDN upload task %s response: HTTP response code %d, response data: %s",
         actionLogId, rsp.getResponseCode(), rsp.getContent());
     if (rsp.getResponseCode() != SC_ACCEPTED) {
       throw new UrlFetchException(
@@ -153,17 +156,15 @@ public final class NordnUploadAction implements Runnable {
               actionLogId),
           req, rsp);
     }
-    getQueue(NordnVerifyAction.QUEUE).add(makeVerifyTask(new URL(location.get()), csvData));
+    getQueue(NordnVerifyAction.QUEUE).add(makeVerifyTask(new URL(location.get())));
   }
 
-  private TaskOptions makeVerifyTask(URL url, String csvData) {
-    // This task doesn't technically need csvData. The only reason it's passed along is in case the
-    // upload is rejected, in which case csvData will be logged so that it may be uploaded manually.
+  private TaskOptions makeVerifyTask(URL url) {
+    // The actionLogId is used to uniquely associate the verify task back to the upload task.
     return withUrl(NordnVerifyAction.PATH)
         .header(NordnVerifyAction.URL_HEADER, url.toString())
         .header(NordnVerifyAction.HEADER_ACTION_LOG_ID, actionLogId)
         .param(RequestParameters.PARAM_TLD, tld)
-        .param(NordnVerifyAction.PARAM_CSV_DATA, csvData)
         .countdownMillis(VERIFY_DELAY.getMillis());
   }
 }

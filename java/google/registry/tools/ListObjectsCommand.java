@@ -65,11 +65,9 @@ abstract class ListObjectsCommand implements RemoteApiCommand, ServerSideCommand
   /** Returns the path to the servlet task. */
   abstract String getCommandPath();
 
-  /** Returns a map of parameters to be sent to the server
-   * (in addition to the usual ones). */
-  @Nullable
+  /** Returns a map of parameters to be sent to the server (in addition to the usual ones). */
   ImmutableMap<String, Object> getParameterMap() {
-    return null;
+    return ImmutableMap.of();
   }
 
   @Override
@@ -84,10 +82,7 @@ abstract class ListObjectsCommand implements RemoteApiCommand, ServerSideCommand
     if (fullFieldNames) {
       params.put(FULL_FIELD_NAMES_PARAM, Boolean.TRUE);
     }
-    ImmutableMap<String, Object> extraParams = getParameterMap();
-    if (extraParams != null) {
-      params.putAll(extraParams);
-    }
+    params.putAll(getParameterMap());
     // Call the server and get the response data.
     String response = connection.send(
         getCommandPath(),
@@ -114,9 +109,9 @@ abstract class ListObjectsCommand implements RemoteApiCommand, ServerSideCommand
     if (status.equals("error")) {
       obj = responseMap.get("error");
       if (obj == null) {
-        throw new VerifyException("Server returned no error message");
+        throw new VerifyException("Server returned an error with no error message");
       }
-      System.out.println(obj);
+      throw new VerifyException(String.format("Server returned an error with message '%s'", obj));
     // Handle success.
     } else if (status.equals("success")) {
       obj = responseMap.get("lines");

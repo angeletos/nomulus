@@ -25,6 +25,7 @@ import com.google.appengine.tools.cloudstorage.GcsFilename;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.io.ByteStreams;
 import google.registry.config.RegistryConfig.Config;
 import google.registry.gcs.GcsUtils;
@@ -32,7 +33,6 @@ import google.registry.reporting.icann.IcannReportingModule.ReportingSubdir;
 import google.registry.request.Action;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
-import google.registry.util.FormattingLogger;
 import google.registry.util.Retrier;
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,7 +57,7 @@ public final class IcannReportingUploadAction implements Runnable {
 
   static final String PATH = "/_dr/task/icannReportingUpload";
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Inject
   @Config("icannReportingBucket")
@@ -82,7 +82,8 @@ public final class IcannReportingUploadAction implements Runnable {
     ImmutableMap.Builder<String, Boolean> reportSummaryBuilder = new ImmutableMap.Builder<>();
     // Report on all manifested files
     for (String reportFilename : manifestedFiles) {
-      logger.infofmt("Reading ICANN report %s from bucket %s", reportFilename, reportBucketname);
+      logger.atInfo().log(
+          "Reading ICANN report %s from bucket %s", reportFilename, reportBucketname);
       final GcsFilename gcsFilename = new GcsFilename(reportBucketname, reportFilename);
       verifyFileExists(gcsFilename);
       boolean success = false;
@@ -95,7 +96,7 @@ public final class IcannReportingUploadAction implements Runnable {
                 },
                 IOException.class);
       } catch (RuntimeException e) {
-        logger.warningfmt(e, "Upload to %s failed.", gcsFilename.toString());
+        logger.atWarning().withCause(e).log("Upload to %s failed.", gcsFilename);
       }
       reportSummaryBuilder.put(reportFilename, success);
     }

@@ -19,6 +19,7 @@ import com.google.api.client.googleapis.util.Utils;
 import com.google.api.services.monitoring.v3.Monitoring;
 import com.google.api.services.monitoring.v3.model.MonitoredResource;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.monitoring.metrics.MetricReporter;
 import com.google.monitoring.metrics.MetricWriter;
@@ -28,14 +29,13 @@ import dagger.Module;
 import dagger.Provides;
 import google.registry.proxy.ProxyConfig.Environment;
 import google.registry.proxy.metric.MetricParameters;
-import google.registry.util.FormattingLogger;
 import javax.inject.Singleton;
 
 /** Module that provides necessary bindings to instantiate a {@link MetricReporter} */
 @Module
 public class MetricsModule {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Singleton
   @Provides
@@ -89,7 +89,7 @@ public class MetricsModule {
     } else {
       monitoredResource.setType("gke_container").setLabels(metricParameters.makeLabelsMap());
     }
-    logger.infofmt("Monitored resource: %s", monitoredResource);
+    logger.atInfo().log("Monitored resource: %s", monitoredResource);
     return monitoredResource;
   }
 

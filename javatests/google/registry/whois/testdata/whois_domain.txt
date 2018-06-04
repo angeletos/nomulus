@@ -1,7 +1,7 @@
 Domain Name: example.tld
 Registry Domain ID: 3-TLD
 Registrar WHOIS Server: whois.nic.fakewhois.example
-Registrar URL: http://www.referral.example/path
+Registrar URL: http://my.fake.url
 Updated Date: 2009-05-29T20:13:00Z
 Creation Date: 2000-10-08T00:45:00Z
 Registry Expiry Date: 2010-10-08T00:44:59Z
@@ -15,7 +15,7 @@ Domain Status: clientRenewProhibited https://icann.org/epp#clientRenewProhibited
 Domain Status: clientTransferProhibited https://icann.org/epp#clientTransferProhibited
 Domain Status: serverUpdateProhibited https://icann.org/epp#serverUpdateProhibited
 Domain Status: transferPeriod https://icann.org/epp#transferPeriod
-Registrant Organization: EXAMPLE ORGANIZATION
+Registrant Organization: Tom & Jerry Corp.
 Registrant State/Province: AP
 Registrant Country: EX
 Name Server: ns01.exampleregistrar.tld

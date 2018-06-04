@@ -27,13 +27,13 @@ import com.google.appengine.api.modules.ModulesService;
 import com.google.appengine.api.modules.ModulesServiceFactory;
 import com.google.appengine.api.taskqueue.TaskHandle;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
+import com.google.common.flogger.FluentLogger;
 import google.registry.config.RegistryConfig.Config;
 import google.registry.request.Action;
 import google.registry.request.Parameter;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
 import google.registry.request.lock.LockHandler;
-import google.registry.util.FormattingLogger;
 import google.registry.util.NonFinalForTesting;
 import java.io.IOException;
 import java.util.Optional;
@@ -74,12 +74,12 @@ public class SyncRegistrarsSheetAction implements Runnable {
     MISSINGNO(SC_BAD_REQUEST, "No sheet ID specified or configured; dropping task.") {
       @Override
       protected void log(Exception cause) {
-        logger.warning(cause, message);
+        logger.atWarning().withCause(cause).log(message);
       }},
     FAILED(SC_INTERNAL_SERVER_ERROR, "Spreadsheet synchronization failed") {
       @Override
       protected void log(Exception cause) {
-        logger.severe(cause, message);
+        logger.atSevere().withCause(cause).log(message);
       }};
 
     private final int statusCode;
@@ -92,7 +92,7 @@ public class SyncRegistrarsSheetAction implements Runnable {
 
     /** Log an error message. Results that use log levels other than info should override this. */
     protected void log(@Nullable Exception cause) {
-      logger.info(cause, message);
+      logger.atInfo().withCause(cause).log(message);
     }
 
     private void send(Response response, @Nullable Exception cause) {
@@ -106,7 +106,7 @@ public class SyncRegistrarsSheetAction implements Runnable {
   public static final String PATH = "/_dr/task/syncRegistrarsSheet";
   private static final String QUEUE = "sheet";
   private static final String LOCK_NAME = "Synchronize registrars sheet";
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @NonFinalForTesting
   private static ModulesService modulesService = ModulesServiceFactory.getModulesService();

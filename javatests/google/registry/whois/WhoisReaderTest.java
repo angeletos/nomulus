@@ -19,6 +19,7 @@ import static google.registry.testing.DatastoreHelper.createTlds;
 import static google.registry.testing.JUnitBackports.assertThrows;
 import static google.registry.testing.LogsSubject.assertAboutLogs;
 
+import com.google.common.flogger.LoggerConfig;
 import com.google.common.testing.TestLogHandler;
 import google.registry.testing.AppEngineRule;
 import google.registry.testing.FakeClock;
@@ -41,14 +42,14 @@ public class WhoisReaderTest {
   @Before
   public void init() {
     createTlds("tld", "xn--kgbechtv", "1.test");
-    WhoisReader.logger.addHandler(testLogHandler);
+    LoggerConfig.getConfig(WhoisReader.class).addHandler(testLogHandler);
   }
 
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
   <T> T readCommand(String commandStr) throws Exception {
     return (T)
         new WhoisReader(new WhoisCommandFactory())
-            .readCommand(new StringReader(commandStr), clock.nowUtc());
+            .readCommand(new StringReader(commandStr), false, clock.nowUtc());
   }
 
   void assertLoadsExampleTld(String commandString) throws Exception {

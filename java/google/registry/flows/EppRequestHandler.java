@@ -20,10 +20,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 import static javax.servlet.http.HttpServletResponse.SC_OK;
 
+import com.google.common.flogger.FluentLogger;
 import com.google.common.net.MediaType;
 import google.registry.model.eppoutput.EppOutput;
 import google.registry.request.Response;
-import google.registry.util.FormattingLogger;
 import javax.inject.Inject;
 
 /** Handle an EPP request and response. */
@@ -32,7 +32,7 @@ public class EppRequestHandler {
   private static final MediaType APPLICATION_EPP_XML =
       MediaType.create("application", "epp+xml").withCharset(UTF_8);
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Inject EppController eppController;
   @Inject Response response;
@@ -52,8 +52,8 @@ public class EppRequestHandler {
       EppOutput eppOutput =
           eppController.handleEppCommand(
               sessionMetadata, credentials, eppRequestSource, isDryRun, isSuperuser, inputXmlBytes);
-      response.setPayload(new String(marshalWithLenientRetry(eppOutput), UTF_8));
       response.setContentType(APPLICATION_EPP_XML);
+      response.setPayload(new String(marshalWithLenientRetry(eppOutput), UTF_8));
       // Note that we always return 200 (OK) even if the EppController returns an error response.
       // This is because returning a non-OK HTTP status code will cause the proxy server to
       // silently close the connection without returning any data. The only time we will ever return
@@ -71,7 +71,7 @@ public class EppRequestHandler {
         response.setHeader("Epp-Session", "close");
       }
     } catch (Exception e) {
-      logger.warning(e, "handleEppCommand general exception");
+      logger.atWarning().withCause(e).log("handleEppCommand general exception");
       response.setStatus(SC_BAD_REQUEST);
     }
   }

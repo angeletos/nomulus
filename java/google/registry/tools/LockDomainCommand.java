@@ -17,18 +17,17 @@ package google.registry.tools;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static google.registry.model.EppResourceUtils.loadByForeignKey;
-import static google.registry.util.FormattingLogger.getLoggerForCallerClass;
 import static org.joda.time.DateTimeZone.UTC;
 
 import com.beust.jcommander.Parameters;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.flogger.FluentLogger;
 import com.google.template.soy.data.SoyMapData;
 import google.registry.model.domain.DomainResource;
 import google.registry.model.eppcommon.StatusValue;
 import google.registry.tools.soy.DomainUpdateSoyInfo;
-import google.registry.util.FormattingLogger;
 import org.joda.time.DateTime;
 
 /**
@@ -39,7 +38,7 @@ import org.joda.time.DateTime;
 @Parameters(separators = " =", commandDescription = "Registry lock a domain via EPP.")
 public class LockDomainCommand extends LockOrUnlockDomainCommand {
 
-  private static final FormattingLogger logger = getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Override
   protected void initMutatingEppToolCommand() throws Exception {
@@ -51,7 +50,7 @@ public class LockDomainCommand extends LockOrUnlockDomainCommand {
       ImmutableSet<StatusValue> statusesToAdd =
           Sets.difference(REGISTRY_LOCK_STATUSES, domainResource.getStatusValues()).immutableCopy();
       if (statusesToAdd.isEmpty()) {
-        logger.infofmt("Domain '%s' is already locked and needs no updates.", domain);
+        logger.atInfo().log("Domain '%s' is already locked and needs no updates.", domain);
         continue;
       }
 

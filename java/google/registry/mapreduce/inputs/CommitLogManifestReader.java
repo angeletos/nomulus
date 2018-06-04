@@ -23,7 +23,6 @@ import com.googlecode.objectify.Key;
 import com.googlecode.objectify.cmd.Query;
 import google.registry.model.ofy.CommitLogBucket;
 import google.registry.model.ofy.CommitLogManifest;
-import google.registry.util.FormattingLogger;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.joda.time.DateTime;
@@ -31,8 +30,6 @@ import org.joda.time.DateTime;
 /** {@link InputReader} that maps over {@link CommitLogManifest}. */
 class CommitLogManifestReader
     extends RetryingInputReader<Key<CommitLogManifest>, Key<CommitLogManifest>> {
-
-  static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
 
   /**
    * Memory estimation for this reader.

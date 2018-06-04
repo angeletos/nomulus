@@ -19,6 +19,7 @@ import static google.registry.request.Action.Method.POST;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.appengine.tools.cloudstorage.GcsFilename;
+import com.google.common.flogger.FluentLogger;
 import com.google.common.io.ByteStreams;
 import google.registry.config.RegistryConfig.Config;
 import google.registry.gcs.GcsUtils;
@@ -28,7 +29,6 @@ import google.registry.request.Action;
 import google.registry.request.Parameter;
 import google.registry.request.RequestParameters;
 import google.registry.request.auth.Auth;
-import google.registry.util.FormattingLogger;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -63,7 +63,7 @@ public final class BrdaCopyAction implements Runnable {
 
   static final String PATH = "/_dr/task/brdaCopy";
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Inject GcsUtils gcsUtils;
   @Inject Ghostryde ghostryde;
@@ -99,7 +99,7 @@ public final class BrdaCopyAction implements Runnable {
 
     long xmlLength = readXmlLength(xmlLengthFilename);
 
-    logger.infofmt("Writing %s", rydeFile);
+    logger.atInfo().log("Writing %s", rydeFile);
     byte[] signature;
     try (InputStream gcsInput = gcsUtils.openInputStream(xmlFilename);
         Ghostryde.Decryptor decryptor = ghostryde.openDecryptor(gcsInput, stagingDecryptionKey);
@@ -118,7 +118,7 @@ public final class BrdaCopyAction implements Runnable {
       signature = signLayer.getSignature();
     }
 
-    logger.infofmt("Writing %s", sigFile);
+    logger.atInfo().log("Writing %s", sigFile);
     try (OutputStream gcsOutput = gcsUtils.openOutputStream(sigFile)) {
       gcsOutput.write(signature);
     }

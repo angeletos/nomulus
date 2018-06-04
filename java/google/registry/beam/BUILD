@@ -15,6 +15,8 @@ java_library(
         "@com_google_apis_google_api_services_bigquery",
         "@com_google_auto_value",
         "@com_google_dagger",
+        "@com_google_flogger",
+        "@com_google_flogger_system_backend",
         "@com_google_guava",
         "@org_apache_avro",
         "@org_apache_beam_runners_direct_java",

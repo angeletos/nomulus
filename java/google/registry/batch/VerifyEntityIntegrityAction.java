@@ -26,7 +26,6 @@ import static google.registry.util.DateTimeUtils.START_OF_TIME;
 import static google.registry.util.DateTimeUtils.earliestOf;
 import static google.registry.util.DateTimeUtils.isAtOrAfter;
 import static google.registry.util.DateTimeUtils.isBeforeOrAt;
-import static google.registry.util.FormattingLogger.getLoggerForCallerClass;
 import static google.registry.util.PipelineUtils.createJobPath;
 import static org.joda.time.DateTimeZone.UTC;
 
@@ -38,6 +37,7 @@ import com.google.appengine.tools.mapreduce.inputs.DatastoreKeyInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.flogger.FluentLogger;
 import com.googlecode.objectify.Key;
 import google.registry.mapreduce.MapreduceRunner;
 import google.registry.mapreduce.inputs.EppResourceInputs;
@@ -59,7 +59,6 @@ import google.registry.model.transfer.TransferData.TransferServerApproveEntity;
 import google.registry.request.Action;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
-import google.registry.util.FormattingLogger;
 import google.registry.util.NonFinalForTesting;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -95,7 +94,7 @@ import org.joda.time.DateTime;
 )
 public class VerifyEntityIntegrityAction implements Runnable {
 
-  private static final FormattingLogger logger = getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   private static final int NUM_SHARDS = 200;
   @NonFinalForTesting
   @VisibleForTesting
@@ -220,7 +219,8 @@ public class VerifyEntityIntegrityAction implements Runnable {
         mapEntity(keyOrEntity);
       } catch (Throwable e) {
         // Log and swallow so that the mapreduce doesn't abort on first error.
-        logger.severefmt(e, "Exception while checking integrity of entity: %s", keyOrEntity);
+        logger.atSevere().withCause(e).log(
+            "Exception while checking integrity of entity: %s", keyOrEntity);
       }
     }
 
@@ -413,8 +413,8 @@ public class VerifyEntityIntegrityAction implements Runnable {
         reduceKeys(mapperKey, keys);
       } catch (Throwable e) {
         // Log and swallow so that the mapreduce doesn't abort on first error.
-        logger.severefmt(
-            e, "Exception while checking foreign key integrity constraints for: %s", mapperKey);
+        logger.atSevere().withCause(e).log(
+            "Exception while checking foreign key integrity constraints for: %s", mapperKey);
       }
     }
 

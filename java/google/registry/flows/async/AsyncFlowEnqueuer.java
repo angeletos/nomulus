@@ -19,12 +19,12 @@ import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
 import com.google.appengine.api.taskqueue.TransientFailureException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.FluentLogger;
 import com.googlecode.objectify.Key;
 import google.registry.config.RegistryConfig.Config;
 import google.registry.model.EppResource;
 import google.registry.model.eppcommon.Trid;
 import google.registry.model.host.HostResource;
-import google.registry.util.FormattingLogger;
 import google.registry.util.Retrier;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -47,7 +47,7 @@ public final class AsyncFlowEnqueuer {
   public static final String QUEUE_ASYNC_DELETE = "async-delete-pull";
   public static final String QUEUE_ASYNC_HOST_RENAME = "async-host-rename-pull";
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   private final Duration asyncDeleteDelay;
   private final Queue asyncDeletePullQueue;
@@ -75,7 +75,7 @@ public final class AsyncFlowEnqueuer {
       Trid trid,
       boolean isSuperuser) {
     Key<EppResource> resourceKey = Key.create(resourceToDelete);
-    logger.infofmt(
+    logger.atInfo().log(
         "Enqueuing async deletion of %s on behalf of registrar %s.",
         resourceKey, requestingClientId);
     TaskOptions task =
@@ -83,17 +83,19 @@ public final class AsyncFlowEnqueuer {
             .countdownMillis(asyncDeleteDelay.getMillis())
             .param(PARAM_RESOURCE_KEY, resourceKey.getString())
             .param(PARAM_REQUESTING_CLIENT_ID, requestingClientId)
-            .param(PARAM_CLIENT_TRANSACTION_ID, trid.getClientTransactionId())
             .param(PARAM_SERVER_TRANSACTION_ID, trid.getServerTransactionId())
             .param(PARAM_IS_SUPERUSER, Boolean.toString(isSuperuser))
             .param(PARAM_REQUESTED_TIME, now.toString());
+    if (trid.getClientTransactionId().isPresent()) {
+      task.param(PARAM_CLIENT_TRANSACTION_ID, trid.getClientTransactionId().get());
+    }
     addTaskToQueueWithRetry(asyncDeletePullQueue, task);
   }
 
   /** Enqueues a task to asynchronously refresh DNS for a renamed host. */
   public void enqueueAsyncDnsRefresh(HostResource host, DateTime now) {
     Key<HostResource> hostKey = Key.create(host);
-    logger.infofmt("Enqueuing async DNS refresh for renamed host %s.", hostKey);
+    logger.atInfo().log("Enqueuing async DNS refresh for renamed host %s.", hostKey);
     addTaskToQueueWithRetry(
         asyncDnsRefreshPullQueue,
         TaskOptions.Builder.withMethod(Method.PULL)

@@ -14,10 +14,12 @@
 
 package google.registry.tools.server;
 
+import static com.google.common.flogger.LazyArgs.lazy;
+
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.FluentLogger;
 import google.registry.request.JsonResponse;
 import google.registry.request.Parameter;
-import google.registry.util.FormattingLogger;
 import javax.inject.Inject;
 
 /**
@@ -25,7 +27,9 @@ import javax.inject.Inject;
  */
 public abstract class CreateOrUpdatePremiumListAction implements Runnable {
 
-  protected static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
+
+  private static final int MAX_LOGGING_PREMIUM_LIST_LENGTH = 1000;
 
   public static final String NAME_PARAM = "name";
   public static final String INPUT_PARAM = "inputData";
@@ -39,12 +43,25 @@ public abstract class CreateOrUpdatePremiumListAction implements Runnable {
     try {
       savePremiumList();
     } catch (IllegalArgumentException e) {
-      logger.info(e, "Usage error in attempting to save premium list from nomulus tool command");
+      logger.atInfo().withCause(e).log(
+          "Usage error in attempting to save premium list from nomulus tool command");
       response.setPayload(ImmutableMap.of("error", e.toString(), "status", "error"));
     } catch (Exception e) {
-      logger.severe(e, "Unexpected error saving premium list from nomulus tool command");
+      logger.atSevere().withCause(e).log(
+          "Unexpected error saving premium list from nomulus tool command");
       response.setPayload(ImmutableMap.of("error", e.toString(), "status", "error"));
     }
+  }
+
+  /** Logs the premium list data at INFO, truncated if too long. */
+  void logInputData() {
+    logger.atInfo().log(
+        "Received the following input data: %s",
+        lazy(
+            () ->
+                (inputData.length() < MAX_LOGGING_PREMIUM_LIST_LENGTH)
+                    ? inputData
+                    : (inputData.substring(0, MAX_LOGGING_PREMIUM_LIST_LENGTH) + "<truncated>")));
   }
 
   /** Creates a new premium list or updates an existing one. */

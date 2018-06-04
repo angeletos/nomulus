@@ -17,9 +17,9 @@ package google.registry.proxy.handler;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static google.registry.proxy.Protocol.PROTOCOL_KEY;
 
+import com.google.common.flogger.FluentLogger;
 import google.registry.proxy.HttpsRelayProtocolModule.HttpsRelayProtocol;
 import google.registry.proxy.Protocol.BackendProtocol;
-import google.registry.util.FormattingLogger;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelInitializer;
@@ -45,14 +45,14 @@ import javax.net.ssl.SSLParameters;
 @Sharable
 public class SslClientInitializer<C extends Channel> extends ChannelInitializer<C> {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
   private final SslProvider sslProvider;
   private final X509Certificate[] trustedCertificates;
 
   @Inject
   SslClientInitializer(
       SslProvider sslProvider, @Nullable @HttpsRelayProtocol X509Certificate... trustCertificates) {
-    logger.infofmt("Client SSL Provider: %s", sslProvider);
+    logger.atInfo().log("Client SSL Provider: %s", sslProvider);
     this.sslProvider = sslProvider;
     this.trustedCertificates = trustCertificates;
   }

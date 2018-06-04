@@ -42,6 +42,7 @@ import static google.registry.util.DomainNameUtils.ACE_PREFIX;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
@@ -120,6 +121,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.joda.money.CurrencyUnit;
 import org.joda.money.Money;
@@ -697,9 +699,6 @@ public class DomainFlowUtils {
     if (!feeTotal.getCurrencyUnit().equals(feesAndCredits.getCurrency())) {
       throw new CurrencyUnitMismatchException();
     }
-    if (!feeTotal.equals(feesAndCredits.getTotalCost())) {
-      throw new FeesMismatchException(feesAndCredits.getTotalCost());
-    }
     // If more than one fees are required, always validate individual fees.
     ImmutableMap<FeeType, Money> expectedFeeMap =
         buildFeeMap(feesAndCredits.getFees(), feesAndCredits.getCurrency());
@@ -707,12 +706,19 @@ public class DomainFlowUtils {
       ImmutableMap<FeeType, Money> providedFeeMap =
           buildFeeMap(feeCommand.get().getFees(), feeCommand.get().getCurrency());
       for (FeeType type : expectedFeeMap.keySet()) {
-        Money providedCost = providedFeeMap.get(type);
+        if (!providedFeeMap.containsKey(type)) {
+          throw new FeesMismatchException(type);
+        }
         Money expectedCost = expectedFeeMap.get(type);
-        if (!providedCost.isEqual(expectedCost)) {
+        if (!providedFeeMap.get(type).isEqual(expectedCost)) {
           throw new FeesMismatchException(type, expectedCost);
         }
       }
+    }
+    // Checking if total amount is expected. Extra fees that we are not expecting may be passed in.
+    // Or if there is only a single fee type expected.
+    if (!feeTotal.equals(feesAndCredits.getTotalCost())) {
+      throw new FeesMismatchException(feesAndCredits.getTotalCost());
     }
   }
 
@@ -724,7 +730,7 @@ public class DomainFlowUtils {
     if (types.size() == 0) {
       throw new FeeDescriptionParseException(fee.getDescription());
     } else if (types.size() > 1) {
-      throw new FeeDescriptionMultipleMatchesException(fee.getDescription());
+      throw new FeeDescriptionMultipleMatchesException(fee.getDescription(), types);
     } else {
       return types.get(0);
     }
@@ -1332,6 +1338,13 @@ public class DomainFlowUtils {
               correctFee));
     }
 
+    public FeesMismatchException(FeeType type) {
+      super(
+          String.format(
+              "The fees passed in the transform command do not contain expected fee type \"%s\"",
+              type));
+    }
+
     public FeesMismatchException(FeeType type, Money correctFee) {
       super(
           String.format(
@@ -1345,20 +1358,25 @@ public class DomainFlowUtils {
   public static class FeeDescriptionParseException extends ParameterValuePolicyErrorException {
     public FeeDescriptionParseException(String description) {
       super(
-          String.format(
-              "The fee description \"%s\" passed in the transform command cannot be parsed",
-              description == null ? "" : description));
+          (Strings.isNullOrEmpty(description)
+                  ? "No fee description is present in the command, "
+                  : "The fee description \""
+                      + description
+                      + "\" passed in the command cannot be parsed, ")
+              + "please perform a domain check to obtain expected fee descriptions.");
     }
   }
 
   /** The fee description passed in the transform command matches multiple fee types. */
   public static class FeeDescriptionMultipleMatchesException
       extends ParameterValuePolicyErrorException {
-    public FeeDescriptionMultipleMatchesException(String description) {
+    public FeeDescriptionMultipleMatchesException(
+        String description, ImmutableList<FeeType> types) {
       super(
           String.format(
-              "The fee description \"%s\" passed in the transform matches multiple fee types",
-              description));
+              "The fee description \"%s\" passed in the transform matches multiple fee types: %s",
+              description,
+              types.stream().map(FeeType::toString).collect(Collectors.joining(", "))));
     }
   }
 

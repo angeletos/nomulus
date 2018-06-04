@@ -18,7 +18,6 @@ import static com.google.common.collect.Sets.intersection;
 import static google.registry.export.LoadSnapshotAction.enqueueLoadSnapshotTask;
 import static google.registry.request.Action.Method.GET;
 import static google.registry.request.Action.Method.POST;
-import static google.registry.util.FormattingLogger.getLoggerForCallerClass;
 
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskHandle;
@@ -28,6 +27,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.flogger.FluentLogger;
 import google.registry.export.DatastoreBackupInfo.BackupStatus;
 import google.registry.request.Action;
 import google.registry.request.HttpException.BadRequestException;
@@ -37,7 +37,6 @@ import google.registry.request.Parameter;
 import google.registry.request.RequestMethod;
 import google.registry.request.Response;
 import google.registry.request.auth.Auth;
-import google.registry.util.FormattingLogger;
 import java.util.Set;
 import javax.inject.Inject;
 import org.joda.time.Duration;
@@ -69,7 +68,7 @@ public class CheckSnapshotAction implements Runnable {
   /** The maximum amount of time we allow a backup to run before abandoning it. */
   static final Duration MAXIMUM_BACKUP_RUNNING_TIME = Duration.standardHours(20);
 
-  private static final FormattingLogger logger = getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   @Inject Response response;
   @Inject @RequestMethod Action.Method requestMethod;
@@ -133,7 +132,7 @@ public class CheckSnapshotAction implements Runnable {
             : backup.getStartTime().toString("YYYYMMdd_HHmmss");
     // Log a warning if kindsToLoad is not a subset of the exported snapshot kinds.
     if (!backup.getKinds().containsAll(kindsToLoad)) {
-      logger.warningfmt(
+      logger.atWarning().log(
           "Kinds to load included non-exported kinds: %s",
           Sets.difference(kindsToLoad, backup.getKinds()));
     }
@@ -147,7 +146,7 @@ public class CheckSnapshotAction implements Runnable {
       enqueueLoadSnapshotTask(snapshotId, backup.getGcsFilename().get(), exportedKindsToLoad);
       message += "BigQuery load task enqueued";
     }
-    logger.info(message);
+    logger.atInfo().log(message);
     response.setPayload(message);
   }
 

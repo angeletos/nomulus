@@ -21,18 +21,20 @@ import static google.registry.xml.UtcDateTimeAdapter.getFormattedString;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.flogger.FluentLogger;
 import com.googlecode.objectify.Key;
 import google.registry.model.EppResource;
 import google.registry.model.contact.ContactPhoneNumber;
 import google.registry.model.contact.ContactResource;
 import google.registry.model.contact.PostalInfo;
+import google.registry.model.domain.DesignatedContact;
+import google.registry.model.domain.DesignatedContact.Type;
 import google.registry.model.domain.DomainResource;
 import google.registry.model.domain.GracePeriod;
 import google.registry.model.eppcommon.StatusValue;
 import google.registry.model.registrar.Registrar;
 import google.registry.model.registrar.RegistrarContact;
 import google.registry.model.translators.EnumToAttributeAdapter.EppEnum;
-import google.registry.util.FormattingLogger;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -42,7 +44,7 @@ import org.joda.time.DateTime;
 /** Represents a WHOIS response to a domain query. */
 final class DomainWhoisResponse extends WhoisResponseImpl {
 
-  private static final FormattingLogger logger = FormattingLogger.getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   /** Prefix for status value URLs. */
   private static final String ICANN_STATUS_URL_PREFIX = "https://icann.org/epp#";
@@ -54,10 +56,14 @@ final class DomainWhoisResponse extends WhoisResponseImpl {
   /** Domain which was the target of this WHOIS command. */
   private final DomainResource domain;
 
+  /** Whether the full WHOIS output is to be displayed. */
+  private final boolean fullOutput;
+
   /** Creates new WHOIS domain response on the given domain. */
-  DomainWhoisResponse(DomainResource domain, DateTime timestamp) {
+  DomainWhoisResponse(DomainResource domain, boolean fullOutput, DateTime timestamp) {
     super(timestamp);
     this.domain = checkNotNull(domain, "domain");
+    this.fullOutput = fullOutput;
   }
 
   @Override
@@ -75,14 +81,14 @@ final class DomainWhoisResponse extends WhoisResponseImpl {
             .stream()
             .filter(RegistrarContact::getVisibleInDomainWhoisAsAbuse)
             .findFirst();
-    String plaintext =
+    DomainEmitter domainEmitter =
         new DomainEmitter()
             .emitField(
                 "Domain Name",
                 maybeFormatHostname(domain.getFullyQualifiedDomainName(), preferUnicode))
             .emitField("Registry Domain ID", domain.getRepoId())
             .emitField("Registrar WHOIS Server", registrar.getWhoisServer())
-            .emitField("Registrar URL", registrar.getReferralUrl())
+            .emitField("Registrar URL", registrar.getUrl())
             .emitFieldIfDefined("Updated Date", getFormattedString(domain.getLastEppUpdateTime()))
             .emitField("Creation Date", getFormattedString(domain.getCreationTime()))
             .emitField(
@@ -98,19 +104,32 @@ final class DomainWhoisResponse extends WhoisResponseImpl {
                 "Registrar Abuse Contact Phone",
                 abuseContact.map(RegistrarContact::getPhoneNumber).orElse(null))
             .emitStatusValues(domain.getStatusValues(), domain.getGracePeriods())
-            .emitContact("Registrant", domain.getRegistrant(), preferUnicode)
-            .emitSet(
-                "Name Server",
-                domain.loadNameserverFullyQualifiedHostNames(),
-                hostName -> maybeFormatHostname(hostName, preferUnicode))
-            .emitField(
-                "DNSSEC", isNullOrEmpty(domain.getDsData()) ? "unsigned" : "signedDelegation")
-            .emitWicfLink()
-            .emitLastUpdated(getTimestamp())
-            .emitAwipMessage()
-            .emitFooter(disclaimer)
-            .toString();
-    return WhoisResponseResults.create(plaintext, 1);
+            .emitContact(
+                "Registrant", Optional.of(domain.getRegistrant()), preferUnicode, fullOutput);
+    if (fullOutput) {
+      domainEmitter
+          .emitContact("Admin", getContactReference(Type.ADMIN), preferUnicode, fullOutput)
+          .emitContact("Tech", getContactReference(Type.TECH), preferUnicode, fullOutput)
+          .emitContact("Billing", getContactReference(Type.BILLING), preferUnicode, fullOutput);
+    }
+    domainEmitter
+        .emitSet(
+            "Name Server",
+            domain.loadNameserverFullyQualifiedHostNames(),
+            hostName -> maybeFormatHostname(hostName, preferUnicode))
+        .emitField("DNSSEC", isNullOrEmpty(domain.getDsData()) ? "unsigned" : "signedDelegation")
+        .emitWicfLink()
+        .emitLastUpdated(getTimestamp())
+        .emitAwipMessage()
+        .emitFooter(disclaimer);
+    return WhoisResponseResults.create(domainEmitter.toString(), 1);
+  }
+
+  /** Returns the contact of the given type. */
+  private Optional<Key<ContactResource>> getContactReference(Type type) {
+    Optional<DesignatedContact> contactOfType =
+        domain.getContacts().stream().filter(d -> d.getType() == type).findFirst();
+    return contactOfType.map(DesignatedContact::getContactKey);
   }
 
   /** Output emitter with logic for domains. */
@@ -127,16 +146,19 @@ final class DomainWhoisResponse extends WhoisResponseImpl {
 
     /** Emit the contact entry of the given type. */
     DomainEmitter emitContact(
-        String contactType, @Nullable Key<ContactResource> contact, boolean preferUnicode) {
-      if (contact == null) {
+        String contactType,
+        Optional<Key<ContactResource>> contact,
+        boolean preferUnicode,
+        boolean fullOutput) {
+      if (!contact.isPresent()) {
         return this;
       }
       // If we refer to a contact that doesn't exist, that's a bug. It means referential integrity
       // has somehow been broken. We skip the rest of this contact, but log it to hopefully bring it
       // someone's attention.
-      ContactResource contactResource = EppResource.loadCached(contact);
+      ContactResource contactResource = EppResource.loadCached(contact.get());
       if (contactResource == null) {
-        logger.severefmt(
+        logger.atSevere().log(
             "(BUG) Broken reference found from domain %s to contact %s",
             domain.getFullyQualifiedDomainName(), contact);
         return this;
@@ -146,9 +168,23 @@ final class DomainWhoisResponse extends WhoisResponseImpl {
               preferUnicode,
               contactResource.getLocalizedPostalInfo(),
               contactResource.getInternationalizedPostalInfo());
-      if (postalInfo != null) {
-        emitFieldIfDefined(ImmutableList.of(contactType, "Organization"), postalInfo.getOrg());
-        emitRegistrantAddress(contactType, postalInfo.getAddress());
+      if (fullOutput) {
+        // If the full output is to be displayed, show all fields for all contact types.
+        // ICANN Consistent Labeling & Display policy requires that this be the ROID.
+        emitField(ImmutableList.of("Registry", contactType, "ID"), contactResource.getRepoId());
+        if (postalInfo != null) {
+          emitFieldIfDefined(ImmutableList.of(contactType, "Name"), postalInfo.getName());
+          emitFieldIfDefined(ImmutableList.of(contactType, "Organization"), postalInfo.getOrg());
+          emitAddress(contactType, postalInfo.getAddress(), fullOutput);
+        }
+        emitPhone(contactType, "Phone", contactResource.getVoiceNumber());
+        emitPhone(contactType, "Fax", contactResource.getFaxNumber());
+        emitField(ImmutableList.of(contactType, "Email"), contactResource.getEmailAddress());
+      } else {
+        if (postalInfo != null) {
+          emitFieldIfDefined(ImmutableList.of(contactType, "Organization"), postalInfo.getOrg());
+          emitAddress(contactType, postalInfo.getAddress(), fullOutput);
+        }
       }
       return this;
     }

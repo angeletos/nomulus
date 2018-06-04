@@ -15,19 +15,18 @@
 package google.registry.dns;
 
 import static com.google.common.base.Preconditions.checkState;
-import static google.registry.util.FormattingLogger.getLoggerForCallerClass;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.FluentLogger;
 import google.registry.dns.writer.DnsWriter;
 import google.registry.model.registry.Registry;
-import google.registry.util.FormattingLogger;
 import java.util.Map;
 import javax.inject.Inject;
 
 /** Proxy for retrieving {@link DnsWriter} implementations. */
 public final class DnsWriterProxy {
 
-  private static final FormattingLogger logger = getLoggerForCallerClass();
+  private static final FluentLogger logger = FluentLogger.forEnclosingClass();
 
   private final ImmutableMap<String, DnsWriter> dnsWriters;
 
@@ -43,9 +42,8 @@ public final class DnsWriterProxy {
    */
   public DnsWriter getByClassNameForTld(String className, String tld) {
     if (!Registry.get(tld).getDnsWriters().contains(className)) {
-      logger.warningfmt(
-          "Loaded potentially stale DNS writer %s which is not active on TLD %s.",
-          className, tld);
+      logger.atWarning().log(
+          "Loaded potentially stale DNS writer %s which is not active on TLD %s.", className, tld);
       return null;
     }
     DnsWriter dnsWriter = dnsWriters.get(className);
