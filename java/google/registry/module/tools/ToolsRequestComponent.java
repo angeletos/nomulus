@@ -19,6 +19,7 @@ import dagger.Subcomponent;
 import google.registry.backup.BackupModule;
 import google.registry.backup.RestoreCommitLogsAction;
 import google.registry.dns.DnsModule;
+import google.registry.export.PublishDetailReportAction;
 import google.registry.flows.EppToolAction;
 import google.registry.flows.EppToolAction.EppToolModule;
 import google.registry.flows.FlowComponent;
@@ -78,6 +79,7 @@ interface ToolsRequestComponent {
   ListTldsAction listTldsAction();
   LoadTestAction loadTestAction();
   PollMapreduceAction pollMapReduceAction();
+  PublishDetailReportAction publishDetailReportAction();
   RefreshDnsForAllDomainsAction refreshDnsForAllDomainsAction();
   ResaveAllHistoryEntriesAction resaveAllHistoryEntriesAction();
   RestoreCommitLogsAction restoreCommitLogsAction();

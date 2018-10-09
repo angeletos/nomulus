@@ -17,8 +17,6 @@ package google.registry.module.pubapi;
 import dagger.Module;
 import dagger.Subcomponent;
 import google.registry.dns.DnsModule;
-import google.registry.flows.CheckApi2Action;
-import google.registry.flows.CheckApi2Action.CheckApi2Module;
 import google.registry.flows.CheckApiAction;
 import google.registry.flows.CheckApiAction.CheckApiModule;
 import google.registry.flows.FlowComponent;
@@ -45,18 +43,16 @@ import google.registry.whois.WhoisModule;
 @RequestScope
 @Subcomponent(
     modules = {
-      CheckApiModule.class,
-      CheckApi2Module.class,
-      DnsModule.class,
-      EppTlsModule.class,
-      RdapModule.class,
-      RequestModule.class,
-      WhiteboxModule.class,
-      WhoisModule.class,
+        CheckApiModule.class,
+        DnsModule.class,
+        EppTlsModule.class,
+        RdapModule.class,
+        RequestModule.class,
+        WhiteboxModule.class,
+        WhoisModule.class,
     })
 interface PubApiRequestComponent {
   CheckApiAction checkApiAction();
-  CheckApi2Action checkApi2Action();
   // TODO(b/79692981): Remove flow-related includes once check API is rewritten to not wrap flow.
   FlowComponent.Builder flowComponentBuilder();
   RdapAutnumAction rdapAutnumAction();

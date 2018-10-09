@@ -30,53 +30,45 @@ import javax.servlet.http.HttpServletRequest;
 @Module
 public final class CronModule {
 
-  public static final String ENDPOINT_PARAM = "endpoint";
-  public static final String QUEUE_PARAM = "queue";
-  public static final String FOR_EACH_REAL_TLD_PARAM = "forEachRealTld";
-  public static final String FOR_EACH_TEST_TLD_PARAM = "forEachTestTld";
-  public static final String RUN_IN_EMPTY_PARAM = "runInEmpty";
-  public static final String EXCLUDE_PARAM = "exclude";
-  public static final String JITTER_SECONDS_PARAM = "jitterSeconds";
-
   @Provides
-  @Parameter(ENDPOINT_PARAM)
+  @Parameter("endpoint")
   static String provideEndpoint(HttpServletRequest req) {
-    return extractRequiredParameter(req, ENDPOINT_PARAM);
+    return extractRequiredParameter(req, "endpoint");
   }
 
   @Provides
-  @Parameter(EXCLUDE_PARAM)
+  @Parameter("exclude")
   static ImmutableSet<String> provideExcludes(HttpServletRequest req) {
-    return extractSetOfParameters(req, EXCLUDE_PARAM);
+    return extractSetOfParameters(req, "exclude");
   }
 
   @Provides
-  @Parameter(QUEUE_PARAM)
+  @Parameter("queue")
   static String provideQueue(HttpServletRequest req) {
-    return extractRequiredParameter(req, QUEUE_PARAM);
+    return extractRequiredParameter(req, "queue");
   }
 
   @Provides
-  @Parameter(RUN_IN_EMPTY_PARAM)
+  @Parameter("runInEmpty")
   static boolean provideRunInEmpty(HttpServletRequest req) {
-    return extractBooleanParameter(req, RUN_IN_EMPTY_PARAM);
+    return extractBooleanParameter(req, "runInEmpty");
   }
 
   @Provides
-  @Parameter(FOR_EACH_REAL_TLD_PARAM)
+  @Parameter("forEachRealTld")
   static boolean provideForEachRealTld(HttpServletRequest req) {
-    return extractBooleanParameter(req, FOR_EACH_REAL_TLD_PARAM);
+    return extractBooleanParameter(req, "forEachRealTld");
   }
 
   @Provides
-  @Parameter(FOR_EACH_TEST_TLD_PARAM)
+  @Parameter("forEachTestTld")
   static boolean provideForEachTestTld(HttpServletRequest req) {
-    return extractBooleanParameter(req, FOR_EACH_TEST_TLD_PARAM);
+    return extractBooleanParameter(req, "forEachTestTld");
   }
 
   @Provides
-  @Parameter(JITTER_SECONDS_PARAM)
+  @Parameter("jitterSeconds")
   static Optional<Integer> provideJitterSeconds(HttpServletRequest req) {
-    return extractOptionalIntParameter(req, JITTER_SECONDS_PARAM);
+    return extractOptionalIntParameter(req, "jitterSeconds");
   }
 }

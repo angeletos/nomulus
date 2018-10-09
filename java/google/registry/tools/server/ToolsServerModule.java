@@ -19,13 +19,12 @@ import static google.registry.request.RequestParameters.extractBooleanParameter;
 import static google.registry.request.RequestParameters.extractIntParameter;
 import static google.registry.request.RequestParameters.extractOptionalParameter;
 import static google.registry.request.RequestParameters.extractRequiredParameter;
-import static google.registry.request.RequestParameters.extractSetOfParameters;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import dagger.Module;
 import dagger.Provides;
 import google.registry.request.Parameter;
-import google.registry.request.RequestParameters;
 import java.util.Optional;
 import javax.servlet.http.HttpServletRequest;
 
@@ -80,15 +79,16 @@ public class ToolsServerModule {
   }
 
   @Provides
-  @Parameter(RequestParameters.PARAM_TLD)
+  @Parameter("tld")
   static String provideTld(HttpServletRequest req) {
-    return extractRequiredParameter(req, RequestParameters.PARAM_TLD);
+    return extractRequiredParameter(req, "tld");
   }
 
   @Provides
-  @Parameter(RequestParameters.PARAM_TLDS)
+  @Parameter("tlds")
   static ImmutableSet<String> provideTlds(HttpServletRequest req) {
-    return extractSetOfParameters(req, RequestParameters.PARAM_TLDS, RequestParameters.PARAM_TLD);
+    String tldsString = extractRequiredParameter(req, "tlds");
+    return ImmutableSet.copyOf(Splitter.on(',').split(tldsString));
   }
 
   @Provides
