@@ -14,20 +14,13 @@
 
 package google.registry.dns;
 
+import static com.google.appengine.api.taskqueue.TaskOptions.Builder.withUrl;
 import static com.google.common.collect.ImmutableSetMultimap.toImmutableSetMultimap;
 import static com.google.common.collect.Sets.difference;
 import static google.registry.dns.DnsConstants.DNS_PUBLISH_PUSH_QUEUE_NAME;
 import static google.registry.dns.DnsConstants.DNS_TARGET_CREATE_TIME_PARAM;
 import static google.registry.dns.DnsConstants.DNS_TARGET_NAME_PARAM;
 import static google.registry.dns.DnsConstants.DNS_TARGET_TYPE_PARAM;
-import static google.registry.dns.DnsModule.PARAM_DNS_WRITER;
-import static google.registry.dns.DnsModule.PARAM_DOMAINS;
-import static google.registry.dns.DnsModule.PARAM_HOSTS;
-import static google.registry.dns.DnsModule.PARAM_LOCK_INDEX;
-import static google.registry.dns.DnsModule.PARAM_NUM_PUBLISH_LOCKS;
-import static google.registry.dns.DnsModule.PARAM_PUBLISH_TASK_ENQUEUED;
-import static google.registry.dns.DnsModule.PARAM_REFRESH_REQUEST_CREATED;
-import static google.registry.request.RequestParameters.PARAM_TLD;
 import static google.registry.util.DomainNameUtils.getSecondLevelDomain;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -51,6 +44,7 @@ import google.registry.model.registry.Registries;
 import google.registry.model.registry.Registry;
 import google.registry.request.Action;
 import google.registry.request.Parameter;
+import google.registry.request.RequestParameters;
 import google.registry.request.auth.Auth;
 import google.registry.util.Clock;
 import google.registry.util.TaskQueueUtils;
@@ -61,7 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Named;
 import org.joda.time.DateTime;
@@ -272,7 +265,7 @@ public final class ReadDnsQueueAction implements Runnable {
       try {
         Map<String, String> params = ImmutableMap.copyOf(task.extractParams());
         DateTime creationTime = DateTime.parse(params.get(DNS_TARGET_CREATE_TIME_PARAM));
-        String tld = params.get(PARAM_TLD);
+        String tld = params.get(RequestParameters.PARAM_TLD);
         if (tld == null) {
           logger.atSevere().log(
               "Discarding invalid DNS refresh request %s; no TLD specified.", task);
@@ -360,33 +353,31 @@ public final class ReadDnsQueueAction implements Runnable {
       DateTime earliestCreateTime =
           chunk.stream().map(RefreshItem::creationTime).min(Comparator.naturalOrder()).get();
       for (String dnsWriter : Registry.get(tld).getDnsWriters()) {
-        taskQueueUtils.enqueue(
-            dnsPublishPushQueue,
-            TaskOptions.Builder.withUrl(PublishDnsUpdatesAction.PATH)
+        TaskOptions options =
+            withUrl(PublishDnsUpdatesAction.PATH)
                 .countdownMillis(
                     jitterSeconds
                         .map(seconds -> random.nextInt((int) SECONDS.toMillis(seconds)))
                         .orElse(0))
-                .param(PARAM_TLD, tld)
-                .param(PARAM_DNS_WRITER, dnsWriter)
-                .param(PARAM_LOCK_INDEX, Integer.toString(lockIndex))
-                .param(PARAM_NUM_PUBLISH_LOCKS, Integer.toString(numPublishLocks))
-                .param(PARAM_PUBLISH_TASK_ENQUEUED, clock.nowUtc().toString())
-                .param(PARAM_REFRESH_REQUEST_CREATED, earliestCreateTime.toString())
+                .param(RequestParameters.PARAM_TLD, tld)
+                .param(PublishDnsUpdatesAction.PARAM_DNS_WRITER, dnsWriter)
+                .param(PublishDnsUpdatesAction.PARAM_LOCK_INDEX, Integer.toString(lockIndex))
                 .param(
-                    PARAM_DOMAINS,
-                    chunk
-                        .stream()
-                        .filter(item -> item.type() == TargetType.DOMAIN)
-                        .map(RefreshItem::name)
-                        .collect(Collectors.joining(",")))
+                    PublishDnsUpdatesAction.PARAM_NUM_PUBLISH_LOCKS,
+                    Integer.toString(numPublishLocks))
                 .param(
-                    PARAM_HOSTS,
-                    chunk
-                        .stream()
-                        .filter(item -> item.type() == TargetType.HOST)
-                        .map(RefreshItem::name)
-                        .collect(Collectors.joining(","))));
+                    PublishDnsUpdatesAction.PARAM_PUBLISH_TASK_ENQUEUED, clock.nowUtc().toString())
+                .param(
+                    PublishDnsUpdatesAction.PARAM_REFRESH_REQUEST_CREATED,
+                    earliestCreateTime.toString());
+        for (RefreshItem refreshItem : chunk) {
+          options.param(
+              (refreshItem.type() == TargetType.HOST)
+                  ? PublishDnsUpdatesAction.PARAM_HOSTS
+                  : PublishDnsUpdatesAction.PARAM_DOMAINS,
+              refreshItem.name());
+        }
+        taskQueueUtils.enqueue(dnsPublishPushQueue, options);
       }
     }
   }

@@ -41,7 +41,6 @@ import org.joda.time.DateTime;
 public final class RdeModule {
 
   public static final String PARAM_WATERMARK = "watermark";
-  public static final String PARAM_WATERMARKS = "watermarks";
   public static final String PARAM_MANUAL = "manual";
   public static final String PARAM_DIRECTORY = "directory";
   public static final String PARAM_MODE = "mode";
@@ -55,9 +54,9 @@ public final class RdeModule {
   }
 
   @Provides
-  @Parameter(PARAM_WATERMARKS)
+  @Parameter(PARAM_WATERMARK)
   static ImmutableSet<DateTime> provideWatermarks(HttpServletRequest req) {
-    return extractSetOfDatetimeParameters(req, PARAM_WATERMARKS, PARAM_WATERMARK);
+    return extractSetOfDatetimeParameters(req, PARAM_WATERMARK);
   }
 
   @Provides

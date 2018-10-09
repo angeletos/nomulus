@@ -1101,8 +1101,9 @@ public final class RegistryConfig {
       return config.registryPolicy.reservedTermsExportDisclaimer;
     }
 
-    /** Returns the clientId of the registrar used by the {@code CheckApiServlet}. */
-    // TODO(b/80417678): remove this once CheckApiAction no longer uses this id.
+    /**
+     * Returns the clientId of the registrar used by the {@code CheckApiServlet}.
+     */
     @Provides
     @Config("checkApiServletRegistrarClientId")
     public static String provideCheckApiServletRegistrarClientId(RegistryConfigSettings config) {

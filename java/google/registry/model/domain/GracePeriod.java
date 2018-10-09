@@ -137,7 +137,7 @@ public class GracePeriod extends ImmutableObject {
       DateTime expirationTime,
       String clientId,
       Key<BillingEvent.Recurring> billingEventRecurring) {
-    checkArgumentNotNull(billingEventRecurring, "billingEventRecurring cannot be null");
+    checkArgumentNotNull(billingEventRecurring);
     return createInternal(type, expirationTime, clientId, null, billingEventRecurring);
   }
 
