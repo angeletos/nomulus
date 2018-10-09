@@ -125,7 +125,7 @@ public class ProxyServer implements Runnable {
                 // This setter also calls channel.read() to request read operation.
                 inboundChannel.config().setAutoRead(true);
                 logger.atInfo().log(
-                    "Relay established: %s <-> %s\nSERVER: %s\nCLIENT: %s",
+                    "Relay established: %s <-> %s\nFRONTEND: %s\nBACKEND: %s",
                     inboundProtocol.name(),
                     outboundProtocol.name(),
                     inboundChannel,
@@ -203,7 +203,7 @@ public class ProxyServer implements Runnable {
 
   public static void main(String[] args) throws Exception {
     // Use JDK logger for Netty's LoggingHandler,
-    // which is what google.registry.util.FormattingLog uses under the hood.
+    // which is what Flogger uses under the hood.
     InternalLoggerFactory.setDefaultFactory(JdkLoggerFactory.INSTANCE);
 
     // Configure the components, this needs to run first so that the logging format is properly
